@@ -1,0 +1,36 @@
+{% extends 'panel/base_panel.html' %}
+{% block title %}Layanan{% endblock %}
+{% block breadcrumb %} / <span>Layanan</span>{% endblock %}
+
+{% block content %}
+<div class="page-header">
+  <div><h1>⚙️ Manajemen Layanan</h1><div class="page-header-sub">Daftar layanan yang tersedia</div></div>
+  <a href="{% url 'layanan_create' %}" class="btn btn-primary">+ Tambah Layanan</a>
+</div>
+<div class="card">
+  <div class="table-wrapper">
+    <table>
+      <thead><tr><th>#</th><th>Nama Layanan</th><th>Emoji Layanan</th><th>Deskripsi</th><th>Status</th><th>Aksi</th></tr></thead>
+      <tbody>
+        {% for l in layanan %}
+        <tr>
+          <td style="color:var(--surf);font-size:.8rem;">{{ forloop.counter }}</td>
+          <td><strong style="color:var(--white);">{{ l.nama }}</strong></td>
+          <td><strong style="color:var(--white);">{% if l.emoji %}{{ l.emoji }}{% else %}-{% endif %}</strong></td>
+          <td style="font-size:.85rem;max-width:300px;">{{ l.deskripsi|truncatewords:15|default:"–" }}</td>
+          <td>{% if l.aktif %}<span class="badge badge-hadir">Aktif</span>{% else %}<span class="badge badge-batal">Nonaktif</span>{% endif %}</td>
+          <td>
+            <div style="display:flex;gap:.4rem;">
+              <a href="{% url 'layanan_edit' l.pk %}" class="btn btn-sm btn-outline">✏️</a>
+              <a href="{% url 'layanan_delete' l.pk %}" class="btn btn-sm btn-danger" data-confirm="Hapus layanan '{{ l.nama }}'?">🗑</a>
+            </div>
+          </td>
+        </tr>
+        {% empty %}
+        <tr><td colspan="5"><div class="empty-state"><div class="empty-state-icon">⚙️</div><p>Belum ada layanan. <a href="{% url 'layanan_create' %}">Tambah sekarang</a></p></div></td></tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+{% endblock %}

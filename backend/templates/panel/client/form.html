@@ -1,0 +1,46 @@
+{% extends 'panel/base_panel.html' %}
+{% block title %}{% if client %}Edit{% else %}Tambah{% endif %} Client{% endblock %}
+{% block breadcrumb %} / <a href="{% url 'client_list' %}">Client</a> / <span>{% if client %}Edit{% else %}Tambah{% endif %}</span>{% endblock %}
+
+{% block content %}
+<div class="page-header">
+  <div>
+    <h1>{% if client %}✏️ Edit Client{% else %}🏢 Tambah Client Baru{% endif %}</h1>
+  </div>
+  <a href="{% url 'client_list' %}" class="btn btn-outline">← Kembali</a>
+</div>
+<div class="card animate-fade-up" style="max-width:680px;">
+  <form method="post">
+    {% csrf_token %}
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:1rem;">
+      <div class="form-group">
+        <label class="form-label">Nama Lengkap *</label>
+        <input type="text" name="nama" class="form-control" value="{{ client.nama|default:'' }}" required placeholder="Nama kontak">
+      </div>
+      <div class="form-group">
+        <label class="form-label">Nama Perusahaan</label>
+        <input type="text" name="perusahaan" class="form-control" value="{{ client.perusahaan|default:'' }}" placeholder="PT, CV, dll.">
+      </div>
+    </div>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:1rem;">
+      <div class="form-group">
+        <label class="form-label">Email</label>
+        <input type="email" name="email" class="form-control" value="{{ client.email|default:'' }}" placeholder="email@perusahaan.com">
+      </div>
+      <div class="form-group">
+        <label class="form-label">No. HP / WhatsApp</label>
+        <input type="text" name="no_hp" class="form-control" value="{{ client.no_hp|default:'' }}" placeholder="+62 812 xxxx xxxx">
+      </div>
+    </div>
+    <div class="form-group">
+      <label class="form-label">Alamat</label>
+      <textarea name="alamat" class="form-control" placeholder="Alamat lengkap...">{{ client.alamat|default:'' }}</textarea>
+    </div>
+    <div style="display:flex;gap:.75rem;">
+      <button type="submit" class="btn btn-primary">{% if client %}💾 Simpan{% else %}✅ Tambah Client{% endif %}</button>
+      <a href="{% url 'client_list' %}" class="btn btn-outline">Batal</a>
+    </div>
+  </form>
+</div>
+<style>@media(max-width:600px){div[style*="grid-template-columns:1fr 1fr"]{grid-template-columns:1fr!important;}}</style>
+{% endblock %}

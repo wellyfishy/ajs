@@ -1,0 +1,545 @@
+{% extends 'panel/base_panel.html' %}
+{% block title %}Shipment{% endblock %}
+{% block breadcrumb %} / <span>Shipment</span>{% endblock %}
+
+{% block extra_css %}
+<style>
+/* ── SHIPMENT PAGE ── */
+.table-pane {
+  transition: margin-right .28s ease;
+}
+.table-pane.drawer-open {
+  margin-right: 324px;
+}
+
+/* DRAWER */
+.detail-drawer {
+  position: fixed;
+  top: 0;
+  right: -340px;
+  width: 320px;
+  height: 100vh;
+  background: linear-gradient(180deg, var(--midnight) 0%, var(--deep) 100%);
+  border-left: 1px solid rgba(77,182,245,0.12);
+  z-index: 60;
+  transition: right .28s ease;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  box-shadow: -8px 0 40px rgba(0,0,0,0.4);
+}
+.detail-drawer.open { right: 0; }
+
+.drawer-header {
+  padding: 1.25rem 1.25rem 1rem;
+  border-bottom: 1px solid rgba(77,182,245,0.1);
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: .75rem;
+  flex-shrink: 0;
+}
+.drawer-ref {
+  font-family: var(--font-display);
+  font-size: 1.05rem;
+  color: var(--white);
+  line-height: 1.2;
+}
+.drawer-client-sub {
+  font-size: .78rem;
+  color: var(--surf);
+  margin-top: .25rem;
+}
+.drawer-close {
+  background: rgba(77,182,245,0.08);
+  border: 1px solid rgba(77,182,245,0.15);
+  color: var(--surf);
+  border-radius: 6px;
+  width: 28px; height: 28px;
+  display: flex; align-items: center; justify-content: center;
+  cursor: pointer;
+  flex-shrink: 0;
+  font-size: .85rem;
+  transition: all .2s;
+}
+.drawer-close:hover {
+  background: rgba(224,82,82,0.15);
+  border-color: rgba(224,82,82,0.3);
+  color: var(--danger);
+}
+
+.drawer-body {
+  flex: 1;
+  overflow-y: auto;
+  padding: 1.25rem;
+}
+.drawer-body::-webkit-scrollbar { width: 4px; }
+.drawer-body::-webkit-scrollbar-thumb { background: var(--ocean); border-radius: 2px; }
+
+.drawer-label {
+  font-size: .68rem;
+  text-transform: uppercase;
+  letter-spacing: .1em;
+  color: rgba(77,182,245,0.45);
+  font-weight: 600;
+  margin-bottom: .3rem;
+}
+.drawer-value {
+  font-size: .86rem;
+  color: var(--mist);
+  line-height: 1.65;
+  margin-bottom: 1rem;
+}
+.drawer-value.is-empty {
+  color: rgba(168,216,240,0.25);
+  font-style: italic;
+}
+.drawer-divider {
+  height: 1px;
+  background: rgba(77,182,245,0.08);
+  margin: .5rem 0 1rem;
+}
+.drawer-two-col {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 0 1rem;
+}
+
+.drawer-footer {
+  padding: 1rem 1.25rem;
+  border-top: 1px solid rgba(77,182,245,0.1);
+  flex-shrink: 0;
+}
+
+/* STATUS SELECT IN TABLE */
+.status-inline-wrap {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+}
+.status-select-inline {
+  appearance: none;
+  -webkit-appearance: none;
+  border: none;
+  cursor: pointer;
+  font-family: var(--font-body);
+  font-size: .75rem;
+  font-weight: 600;
+  padding: .28rem .5rem .28rem .55rem;
+  padding-right: 1.4rem;
+  border-radius: 20px;
+  outline: none;
+  transition: box-shadow .2s, opacity .15s;
+}
+.status-select-inline:focus { box-shadow: 0 0 0 2px rgba(77,182,245,0.25); }
+.status-select-inline.saving { opacity: .55; pointer-events: none; }
+.status-select-inline option { background: var(--midnight); color: var(--white); }
+.s-pending { background:rgba(240,163,78,.15); color:var(--warning); border:1px solid rgba(240,163,78,.3); }
+.s-proses  { background:rgba(41,128,196,.15); color:var(--foam);    border:1px solid rgba(41,128,196,.3); }
+.s-selesai { background:rgba(46,199,139,.12); color:var(--success); border:1px solid rgba(46,199,139,.25);}
+.s-batal   { background:rgba(224,82,82,.12);  color:var(--danger);  border:1px solid rgba(224,82,82,.25); }
+.status-caret {
+  position: absolute;
+  right: .4rem;
+  pointer-events: none;
+  font-size: .55rem;
+  opacity: .5;
+  color: inherit;
+}
+
+/* ACTIVE ROW */
+tbody tr.row-active { background: rgba(41,128,196,0.07) !important; }
+tbody tr.row-active td:first-child { box-shadow: inset 2px 0 0 var(--wave); }
+
+/* TOAST */
+#status-toast {
+  position: fixed;
+  bottom: 1.5rem;
+  left: 50%;
+  transform: translateX(-50%) translateY(8px);
+  background: var(--midnight);
+  border: 1px solid rgba(77,182,245,0.2);
+  border-radius: 30px;
+  padding: .5rem 1.2rem;
+  font-size: .82rem;
+  color: var(--white);
+  z-index: 300;
+  opacity: 0;
+  pointer-events: none;
+  white-space: nowrap;
+  transition: opacity .2s, transform .2s;
+}
+#status-toast.show { opacity: 1; transform: translateX(-50%) translateY(0); }
+#status-toast.is-error { border-color: rgba(224,82,82,.35); color: var(--danger); }
+
+@media (max-width: 960px) {
+  .table-pane.drawer-open { margin-right: 0; }
+  .detail-drawer { width: min(100vw, 360px); right: -400px; }
+}
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="page-header">
+  <div>
+    <h1>🚢 Manajemen Shipment</h1>
+    <div class="page-header-sub">Klik baris untuk detail · Ubah status langsung dari tabel</div>
+  </div>
+  <a href="{% url 'shipment_create' %}" class="btn btn-primary">+ Tambah Shipment</a>
+</div>
+
+<!-- FILTERS -->
+<div class="filter-row">
+  <div class="search-input-wrap">
+    <span class="search-icon">🔍</span>
+    <input type="text" id="search-input" class="form-control" placeholder="Cari referensi, client..." style="width:260px;">
+  </div>
+  <select id="filter-status" class="form-control" style="width:auto;">
+    <option value="">Semua Status</option>
+    <option value="pending">Pending</option>
+    <option value="proses">Dalam Proses</option>
+    <option value="selesai">Selesai</option>
+    <option value="batal">Dibatalkan</option>
+  </select>
+  <select id="filter-layanan" class="form-control" style="width:auto;">
+    <option value="">Semua Layanan</option>
+    {% regroup shipments by layanan.nama as layanan_groups %}
+    {% for group in layanan_groups %}
+      {% if group.grouper %}
+      <option value="{{ group.grouper }}">{{ group.grouper }}</option>
+      {% endif %}
+    {% endfor %}
+  </select>
+</div>
+
+<!-- TABLE -->
+<div class="table-pane" id="table-pane">
+  <div class="card" style="padding:0;overflow:hidden;">
+    <div class="table-wrapper">
+      <table id="shipment-table">
+        <thead>
+          <tr>
+            <th>No. Referensi</th>
+            <th>Client</th>
+            <th>Layanan</th>
+            <th style="width:148px;">Status</th>
+            <th>PIC</th>
+            <th>Tgl Request</th>
+            <th>Tgl Selesai</th>
+            <th>DEADLINE</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for s in shipments %}
+          <tr class="shipment-row"
+            style="cursor:pointer;"
+            data-id="{{ s.pk }}"
+            data-status="{{ s.status }}"
+            data-layanan="{{ s.layanan.nama|default:'' }}"
+            data-search="{{ s.nomor_referensi|lower }} {{ s.client.nama|lower }} {{ s.client.perusahaan|lower }}"
+            data-ref="{{ s.nomor_referensi }}"
+            data-client="{{ s.client.nama|default:'–' }}"
+            data-perusahaan="{{ s.client.perusahaan|default:'' }}"
+            data-layanan-nama="{{ s.layanan.nama|default:'–' }}"
+            data-pic="{{ s.pic.get_full_name|default:s.pic.username|default:'–' }}"
+            data-tgl-request="{{ s.tanggal_request|date:'d M Y' }}"
+            data-tgl-selesai="{{ s.tanggal_selesai|date:'d M Y'|default:'–' }}"
+            data-tgl-deadline="{{ s.tanggal_deadline|date:'d M Y'|default:'–' }}"
+            data-deskripsi="{{ s.deskripsi|default:'' }}"
+            data-catatan="{{ s.catatan|default:'' }}"
+            data-dokumen="{% if s.dokumen %}{{ s.dokumen.url }}{% endif %}"
+            data-created="{{ s.created_at|date:'d M Y, H:i' }}"
+            data-updated="{{ s.updated_at|date:'d M Y, H:i' }}"
+          >
+            <td>
+              <strong style="color:var(--white);font-size:.875rem;">{{ s.nomor_referensi }}</strong>
+            </td>
+            <td>
+              <div>{{ s.client.nama|default:"–" }}</div>
+              {% if s.client.perusahaan %}
+              <div style="font-size:.73rem;color:var(--surf);">{{ s.client.perusahaan }}</div>
+              {% endif %}
+            </td>
+            <td style="font-size:.82rem;color:var(--surf);">{{ s.layanan.nama|default:"–" }}</td>
+            <td onclick="event.stopPropagation()">
+              <div class="status-inline-wrap">
+                <select
+                  class="status-select-inline s-{{ s.status }}"
+                  data-pk="{{ s.pk }}"
+                  data-original="{{ s.status }}"
+                >
+                  <option value="pending"  {% if s.status == 'pending' %}selected{% endif %}>⏳ Pending</option>
+                  <option value="proses"   {% if s.status == 'proses'  %}selected{% endif %}>🔄 Dalam Proses</option>
+                  <option value="selesai"  {% if s.status == 'selesai' %}selected{% endif %}>✅ Selesai</option>
+                  <option value="batal"    {% if s.status == 'batal'   %}selected{% endif %}>❌ Dibatalkan</option>
+                </select>
+                <span class="status-caret">▾</span>
+              </div>
+            </td>
+            <td style="font-size:.82rem;">{{ s.pic.get_full_name|default:s.pic.username|default:"–" }}</td>
+            <td style="font-size:.8rem;color:var(--surf);">{{ s.tanggal_request|date:"d M Y" }}</td>
+            <td style="font-size:.8rem;color:var(--surf);">{{ s.tanggal_selesai|date:"d M Y"|default:"–" }}</td>
+            <td style="font-size:.8rem;color:var(--surf);"><b>{{ s.tanggal_deadline|date:"d M Y"|default:"–" }}</b></td>
+          </tr>
+          {% empty %}
+          <tr>
+            <td colspan="8">
+              <div class="empty-state">
+                <div class="empty-state-icon">🚢</div>
+                <p>Belum ada data shipment. <a href="{% url 'shipment_create' %}">Tambah sekarang</a></p>
+              </div>
+            </td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+  <div id="row-count" style="margin-top:.65rem;font-size:.78rem;color:var(--surf);"></div>
+</div>
+
+<!-- DETAIL DRAWER -->
+<aside class="detail-drawer" id="detail-drawer">
+  <div class="drawer-header">
+    <div>
+      <div class="drawer-ref" id="d-ref">–</div>
+      <div class="drawer-client-sub" id="d-client-sub"></div>
+    </div>
+    <button class="drawer-close" id="drawer-close">✕</button>
+  </div>
+
+  <div class="drawer-body">
+
+    <div class="drawer-label">Status</div>
+    <div id="d-status-badge" style="margin-bottom:1rem;"></div>
+
+    <div class="drawer-label">Tgl Deadline</div>
+    <div class="drawer-value" id="d-tgl-deadline">–</div>
+
+    <div class="drawer-label">Layanan</div>
+    <div class="drawer-value" id="d-layanan">–</div>
+
+    <div class="drawer-label">PIC</div>
+    <div class="drawer-value" id="d-pic">–</div>
+
+    <div class="drawer-divider"></div>
+
+    <div class="drawer-label">Deskripsi</div>
+    <div class="drawer-value" id="d-deskripsi">–</div>
+
+    <div class="drawer-label">Catatan</div>
+    <div class="drawer-value" id="d-catatan">–</div>
+
+    <div class="drawer-divider"></div>
+
+    <div class="drawer-two-col">
+      <div>
+        <div class="drawer-label">Tgl Request</div>
+        <div class="drawer-value" id="d-tgl-req">–</div>
+      </div>
+      <div>
+        <div class="drawer-label">Tgl Selesai</div>
+        <div class="drawer-value" id="d-tgl-sel">–</div>
+      </div>
+      <div>
+        <div class="drawer-label">Dibuat</div>
+        <div class="drawer-value" id="d-created" style="font-size:.77rem;">–</div>
+      </div>
+      <div>
+        <div class="drawer-label">Diupdate</div>
+        <div class="drawer-value" id="d-updated" style="font-size:.77rem;">–</div>
+      </div>
+    </div>
+
+    <div id="d-dokumen-section" style="display:none;">
+      <div class="drawer-divider"></div>
+      <div class="drawer-label">Dokumen</div>
+      <a id="d-dokumen-link" href="#" target="_blank" class="btn btn-outline btn-sm" style="margin-top:.25rem;">📄 Lihat Dokumen</a>
+    </div>
+
+  </div>
+
+  <div class="drawer-footer" style="display:flex;gap:.5rem;">
+    <a id="d-edit-link" href="#" class="btn btn-primary" style="flex:7;justify-content:center;">✏️ Edit Lengkap</a>
+    <a id="d-delete-link" href="#" class="btn btn-danger" style="flex:3;justify-content:center;" data-confirm="">🗑️ Hapus</a>
+  </div>
+</aside>
+
+<div id="status-toast"></div>
+{% endblock %}
+
+
+{% block extra_js %}
+<script>
+const CSRF = '{{ csrf_token }}';
+
+const STATUS_LABELS = {
+  pending: 'Pending',
+  proses:  'Dalam Proses',
+  selesai: 'Selesai',
+  batal:   'Dibatalkan',
+};
+const STATUS_BADGE = {
+  pending: '<span class="badge badge-pending">⏳ Pending</span>',
+  proses:  '<span class="badge badge-proses">🔄 Dalam Proses</span>',
+  selesai: '<span class="badge badge-selesai">✅ Selesai</span>',
+  batal:   '<span class="badge badge-batal">✕ Dibatalkan</span>',
+};
+
+// ── DRAWER ──────────────────────────────────────────────
+const drawer    = document.getElementById('detail-drawer');
+const tablePane = document.getElementById('table-pane');
+let activeRow   = null;
+
+function openDrawer(row) {
+  if (activeRow) activeRow.classList.remove('row-active');
+  activeRow = row;
+  row.classList.add('row-active');
+  tablePane.classList.add('drawer-open');
+  drawer.classList.add('open');
+  populateDrawer(row.dataset);
+}
+
+function closeDrawer() {
+  drawer.classList.remove('open');
+  tablePane.classList.remove('drawer-open');
+  if (activeRow) { activeRow.classList.remove('row-active'); activeRow = null; }
+}
+
+function populateDrawer(d) {
+  document.getElementById('d-ref').textContent = d.ref;
+  document.getElementById('d-client-sub').textContent =
+    d.client + (d.perusahaan ? ' · ' + d.perusahaan : '');
+  document.getElementById('d-layanan').textContent  = d.layananNama || '–';
+  document.getElementById('d-pic').textContent      = d.pic || '–';
+  document.getElementById('d-tgl-req').textContent  = d.tglRequest || '–';
+  document.getElementById('d-tgl-sel').textContent  = d.tglSelesai || '–';
+  document.getElementById('d-tgl-deadline').textContent  = d.tglDeadline || '–';
+  document.getElementById('d-created').textContent  = d.created || '–';
+  document.getElementById('d-updated').textContent  = d.updated || '–';
+
+  document.getElementById('d-status-badge').innerHTML = STATUS_BADGE[d.status] || d.status;
+
+  const setVal = (id, text) => {
+    const el = document.getElementById(id);
+    if (text) { el.textContent = text; el.classList.remove('is-empty'); }
+    else       { el.textContent = 'Tidak ada'; el.classList.add('is-empty'); }
+  };
+  setVal('d-deskripsi', d.deskripsi);
+  setVal('d-catatan',   d.catatan);
+
+  const dokSec  = document.getElementById('d-dokumen-section');
+  if (d.dokumen) {
+    document.getElementById('d-dokumen-link').href = d.dokumen;
+    dokSec.style.display = '';
+  } else {
+    dokSec.style.display = 'none';
+  }
+
+  // Build edit URL: /panel/shipment/<pk>/edit/
+  document.getElementById('d-edit-link').href =
+    window.location.pathname.split('/shipment/')[0] + '/shipment/' + d.id + '/edit/';
+
+  document.getElementById('d-delete-link').href =
+    window.location.pathname.split('/shipment/')[0] + '/shipment/' + d.id + '/hapus/';
+  document.getElementById('d-delete-link').dataset.confirm =
+    'Hapus shipment ' + d.ref + '?';
+}
+
+document.getElementById('drawer-close').addEventListener('click', closeDrawer);
+
+document.querySelectorAll('.shipment-row').forEach(row => {
+  row.addEventListener('click', () => {
+    activeRow === row ? closeDrawer() : openDrawer(row);
+  });
+});
+
+// Sync drawer when status changes on the active row
+function syncDrawerStatus(status) {
+  document.getElementById('d-status-badge').innerHTML = STATUS_BADGE[status] || status;
+}
+
+// ── INLINE STATUS CHANGE ────────────────────────────────
+document.querySelectorAll('.status-select-inline').forEach(sel => {
+  sel.addEventListener('change', async function () {
+    const pk        = this.dataset.pk;
+    const newStatus = this.value;
+    const original  = this.dataset.original;
+    const row       = this.closest('tr');
+
+    // Optimistic update
+    this.className = `status-select-inline s-${newStatus} saving`;
+    row.dataset.status = newStatus;
+    if (activeRow === row) syncDrawerStatus(newStatus);
+
+    try {
+      const res = await fetch(`/panel/shipment/${pk}/status/`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/x-www-form-urlencoded',
+          'X-CSRFToken': CSRF,
+        },
+        body: `status=${encodeURIComponent(newStatus)}`,
+      });
+      if (!res.ok) throw new Error();
+
+      this.dataset.original = newStatus;
+      this.className = `status-select-inline s-${newStatus}`;
+      showToast(`✓  ${row.dataset.ref} → ${STATUS_LABELS[newStatus]}`, false);
+
+    } catch (_) {
+      // Rollback
+      this.value     = original;
+      this.className = `status-select-inline s-${original}`;
+      row.dataset.status = original;
+      if (activeRow === row) syncDrawerStatus(original);
+      showToast('⚠ Gagal menyimpan. Coba lagi.', true);
+    }
+  });
+});
+
+// ── TOAST ───────────────────────────────────────────────
+let toastTimer;
+function showToast(msg, isError) {
+  const t = document.getElementById('status-toast');
+  t.textContent = msg;
+  t.className = 'show' + (isError ? ' is-error' : '');
+  clearTimeout(toastTimer);
+  toastTimer = setTimeout(() => { t.className = ''; }, 2600);
+}
+
+// ── FILTER + SEARCH ─────────────────────────────────────
+const searchInput   = document.getElementById('search-input');
+const filterStatus  = document.getElementById('filter-status');
+const filterLayanan = document.getElementById('filter-layanan');
+const rowCountEl    = document.getElementById('row-count');
+const allRows       = document.querySelectorAll('.shipment-row');
+
+function applyFilters() {
+  const q  = searchInput.value.toLowerCase().trim();
+  const st = filterStatus.value;
+  const la = filterLayanan.value;
+  let visible = 0;
+
+  allRows.forEach(row => {
+    const show =
+      (!q  || row.dataset.search.includes(q)) &&
+      (!st || row.dataset.status  === st) &&
+      (!la || row.dataset.layanan === la);
+    row.style.display = show ? '' : 'none';
+    if (show) visible++;
+  });
+
+  rowCountEl.textContent = visible < allRows.length
+    ? `Menampilkan ${visible} dari ${allRows.length} shipment`
+    : `${allRows.length} shipment`;
+
+  if (activeRow && activeRow.style.display === 'none') closeDrawer();
+}
+
+searchInput.addEventListener('input', applyFilters);
+filterStatus.addEventListener('change', applyFilters);
+filterLayanan.addEventListener('change', applyFilters);
+applyFilters();
+</script>
+{% endblock %}

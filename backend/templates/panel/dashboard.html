@@ -1,0 +1,125 @@
+{% extends 'panel/base_panel.html' %}
+{% block title %}Dashboard{% endblock %}
+{% block breadcrumb %} / <span>Dashboard</span>{% endblock %}
+
+{% block content %}
+<div class="page-header">
+  <div>
+    <h1>Selamat datang, {{ request.user.get_full_name|default:request.user.username }} 👋</h1>
+    <div class="page-header-sub">Ringkasan operasional hari ini — {% now "l, d F Y" %}</div>
+  </div>
+</div>
+
+<!-- ABSENSI QUICK ACTION -->
+<div class="card" style="margin-bottom:1.5rem;background:linear-gradient(135deg,rgba(13,59,110,0.5),rgba(7,30,51,0.8));">
+  <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:1rem;">
+    <div style="display:flex;align-items:center;gap:1rem;">
+      <div style="font-size:2.5rem;">📋</div>
+      <div>
+        <div style="font-weight:600;color:var(--white);font-size:.95rem;">Absensi Hari Ini</div>
+        {% if absen_today %}
+          <div style="color:var(--foam);font-size:.85rem;">
+            Masuk: {{ absen_today.jam_masuk|time:"H:i" }}
+            {% if absen_today.jam_keluar %} &nbsp;·&nbsp; Keluar: {{ absen_today.jam_keluar|time:"H:i" }}{% endif %}
+          </div>
+        {% else %}
+          <div style="color:var(--surf);font-size:.85rem;">Belum absen masuk hari ini</div>
+        {% endif %}
+      </div>
+    </div>
+    <div style="display:flex;gap:.75rem;">
+      {% if not absen_today %}
+        <a href="{% url 'absen_masuk' %}" class="btn btn-primary">✅ Absen Masuk</a>
+      {% elif not absen_today.jam_keluar %}
+        <a href="{% url 'absen_keluar' %}" class="btn btn-outline">🚪 Absen Keluar</a>
+      {% else %}
+        <span class="badge badge-selesai" style="font-size:.85rem;padding:.4rem .9rem;">✓ Selesai Hari Ini</span>
+      {% endif %}
+    </div>
+  </div>
+</div>
+
+<!-- STAT CARDS -->
+<div class="dashboard-grid">
+  <div class="stat-card animate-fade-up">
+    <div class="stat-card-icon" style="background:rgba(41,128,196,0.15);color:var(--foam);">🚢</div>
+    <div class="stat-card-value">{{ shipment_count }}</div>
+    <div class="stat-card-label">Shipment Dalam Proses</div>
+  </div>
+  <div class="stat-card animate-fade-up-d1">
+    <div class="stat-card-icon" style="background:rgba(240,163,78,0.15);color:var(--warning);">✅</div>
+    <div class="stat-card-value">{{ todo_count }}</div>
+    <div class="stat-card-label">Todo Pending</div>
+  </div>
+  <div class="stat-card animate-fade-up-d2">
+    <a href="{% url 'absensi_list' %}" style="text-decoration:none;color:inherit;">
+      <div class="stat-card-icon" style="background:rgba(46,199,139,0.15);color:var(--success);">📋</div>
+      <div class="stat-card-value">
+        {% if absen_today and absen_today.jam_masuk %}
+          {{ absen_today.jam_masuk|time:"H:i" }}
+        {% else %}–{% endif %}
+      </div>
+      <div class="stat-card-label">Jam Masuk Hari Ini</div>
+    </a>
+  </div>
+  <div class="stat-card animate-fade-up-d3">
+    <a href="{% url 'shipment_list' %}" style="text-decoration:none;color:inherit;">
+      <div class="stat-card-icon" style="background:rgba(201,168,76,0.15);color:var(--gold-light);">⚓</div>
+      <div class="stat-card-value">⟶</div>
+      <div class="stat-card-label">Lihat Semua Shipment</div>
+    </a>
+  </div>
+</div>
+
+<!-- QUICK LINKS + HISTORY -->
+<div style="display:grid;grid-template-columns:1fr 1.5fr;gap:1.5rem;margin-top:1.5rem;">
+
+  <!-- QUICK LINKS -->
+  <div class="card animate-fade-up">
+    <h3 style="font-size:1rem;margin-bottom:1.25rem;color:var(--surf);text-transform:uppercase;letter-spacing:.05em;font-family:var(--font-body);font-size:.8rem;">Akses Cepat</h3>
+    <div style="display:flex;flex-direction:column;gap:.5rem;">
+      <a href="{% url 'shipment_create' %}" class="btn btn-primary" style="justify-content:flex-start;">🚢 &nbsp; Tambah Shipment Baru</a>
+      <a href="{% url 'client_create' %}" class="btn btn-outline" style="justify-content:flex-start;">🏢 &nbsp; Tambah Client Baru</a>
+      <a href="{% url 'todo_create' %}" class="btn btn-outline" style="justify-content:flex-start;">✅ &nbsp; Buat Todo Baru</a>
+      <a href="{% url 'absensi_list' %}" class="btn btn-outline" style="justify-content:flex-start;">📋 &nbsp; Lihat Rekap Absensi</a>
+      {% if request.user.profile.role == 'admin' %}
+      <a href="{% url 'user_create' %}" class="btn btn-outline" style="justify-content:flex-start;border-color:rgba(201,168,76,0.3);color:var(--gold-light);">🔑 &nbsp; Tambah Pengguna Baru</a>
+      {% endif %}
+    </div>
+  </div>
+
+  <!-- RECENT HISTORY -->
+  <div class="dash-history animate-fade-up-d1">
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:1rem;">
+      <h3 style="font-size:.8rem;color:var(--surf);text-transform:uppercase;letter-spacing:.05em;font-family:var(--font-body);">Aktivitas Terbaru</h3>
+      {% if request.user.profile.role == 'admin' %}
+      <a href="{% url 'history_list' %}" style="font-size:.8rem;color:var(--foam);">Lihat semua →</a>
+      {% endif %}
+    </div>
+    {% for h in history %}
+    <div class="history-item">
+      <div class="history-dot"></div>
+      <div style="flex:1;min-width:0;">
+        <div style="display:flex;align-items:center;gap:.4rem;flex-wrap:wrap;">
+          <span class="history-aksi aksi-{{ h.aksi|lower }}">{{ h.aksi }}</span>
+          <span class="history-text" style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">{{ h.detail }}</span>
+        </div>
+        <div class="history-meta">
+          {{ h.user.username }} · {{ h.created_at|timesince }} yang lalu
+        </div>
+      </div>
+    </div>
+    {% empty %}
+    <div style="text-align:center;padding:2rem 0;color:var(--surf);font-size:.85rem;">Belum ada aktivitas.</div>
+    {% endfor %}
+  </div>
+
+</div>
+
+<!-- RESPONSIVE GRID FIX -->
+<style>
+  @media (max-width:700px) {
+    div[style*="grid-template-columns:1fr 1.5fr"] { grid-template-columns: 1fr !important; }
+  }
+</style>
+{% endblock %}

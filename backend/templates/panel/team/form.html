@@ -1,0 +1,71 @@
+{% extends 'panel/base_panel.html' %}
+{% block title %}{% if member %}Edit{% else %}Tambah{% endif %} Anggota Tim{% endblock %}
+{% block breadcrumb %} / <a href="{% url 'team_list' %}">Tim</a> / <span>{% if member %}Edit{% else %}Tambah{% endif %}</span>{% endblock %}
+
+{% block content %}
+<div class="page-header">
+  <div><h1>{% if member %}✏️ Edit Anggota Tim{% else %}👥 Tambah Anggota Tim{% endif %}</h1></div>
+  <a href="{% url 'team_list' %}" class="btn btn-outline">← Kembali</a>
+</div>
+
+<div style="display:grid;grid-template-columns:2fr 1fr;gap:1.5rem;align-items:start;">
+  <div class="card animate-fade-up">
+    <form method="post" enctype="multipart/form-data">
+      {% csrf_token %}
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:1rem;">
+        <div class="form-group">
+          <label class="form-label">Nama Lengkap *</label>
+          <input type="text" name="nama" class="form-control" value="{{ member.nama|default:'' }}" required placeholder="Nama anggota tim">
+        </div>
+        <div class="form-group">
+          <label class="form-label">Jabatan *</label>
+          <input type="text" name="jabatan" class="form-control" value="{{ member.jabatan|default:'' }}" required placeholder="Contoh: Direktur Utama">
+        </div>
+      </div>
+      <div class="form-group">
+        <label class="form-label">Bio / Tentang</label>
+        <textarea name="bio" class="form-control" placeholder="Deskripsi singkat anggota tim...">{{ member.bio|default:'' }}</textarea>
+      </div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:1rem;">
+        <div class="form-group">
+          <label class="form-label">Urutan Tampil</label>
+          <input type="number" name="urutan" class="form-control" value="{{ member.urutan|default:0 }}" min="0" placeholder="0 = paling awal">
+        </div>
+        <div class="form-group">
+          <label class="form-label">Foto Profil</label>
+          <input type="file" name="foto" class="form-control" accept="image/*">
+          {% if member.foto %}
+          <div style="margin-top:.4rem;font-size:.8rem;color:var(--foam);">📷 Foto sudah ada</div>
+          {% endif %}
+        </div>
+      </div>
+      <div class="form-group">
+        <div class="toggle-wrap">
+          <label class="toggle">
+            <input type="checkbox" name="aktif" {% if member.aktif or not member %}checked{% endif %}>
+            <span class="toggle-slider"></span>
+          </label>
+          <span style="font-size:.88rem;color:var(--surf);">Tampilkan di halaman publik</span>
+        </div>
+      </div>
+      <div style="display:flex;gap:.75rem;margin-top:.5rem;">
+        <button type="submit" class="btn btn-primary">{% if member %}💾 Simpan{% else %}✅ Tambah Anggota{% endif %}</button>
+        <a href="{% url 'team_list' %}" class="btn btn-outline">Batal</a>
+      </div>
+    </form>
+  </div>
+
+  <div class="card animate-fade-up-d1" style="text-align:center;">
+    <div style="width:100px;height:100px;border-radius:50%;overflow:hidden;margin:0 auto 1rem;border:2px solid rgba(77,182,245,0.2);background:var(--navy);display:flex;align-items:center;justify-content:center;font-size:3rem;">
+      {% if member.foto %}<img src="{{ member.foto.url }}" alt="" style="width:100%;height:100%;object-fit:cover;">{% else %}⚓{% endif %}
+    </div>
+    <div style="font-size:.82rem;color:var(--surf);">Preview foto profil</div>
+    <div class="divider"></div>
+    <div style="font-size:.8rem;color:var(--surf);text-align:left;line-height:1.7;">
+      <p>💡 <strong style="color:var(--white);">Tips foto:</strong></p>
+      <p>Gunakan foto berbentuk persegi (1:1) untuk hasil terbaik. Format JPG atau PNG.</p>
+    </div>
+  </div>
+</div>
+<style>@media(max-width:768px){div[style*="grid-template-columns:2fr 1fr"]{grid-template-columns:1fr!important;}div[style*="grid-template-columns:1fr 1fr"]{grid-template-columns:1fr!important;}}</style>
+{% endblock %}

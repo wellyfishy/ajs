@@ -1,0 +1,120 @@
+{% extends 'landing/base_landing.html' %}
+{% load static %}
+
+{% block title %}PT Atika Jaya Samudera – Shipping Agency{% endblock %}
+
+{% block content %}
+
+<!-- HERO -->
+<section class="hero">
+  <div class="hero-circle hero-circle-1"></div>
+  <div class="hero-circle hero-circle-2"></div>
+  <div class="hero-circle hero-circle-3"></div>
+
+  <div class="hero-badge animate-fade-up">⚓ &nbsp; Shipping Agency Terpercaya</div>
+
+  <h1 class="hero-title animate-fade-up-d1">
+    Mengarungi Lautan<br>
+    <span class="accent">Menghubungkan Nusantara</span>
+  </h1>
+
+  <p class="hero-sub animate-fade-up-d2">
+    PT Atika Jaya Samudera hadir sebagai mitra keagenan kapal yang handal, menghubungkan seluruh pelabuhan di Indonesia dengan layanan profesional.
+  </p>
+
+  <div class="hero-cta animate-fade-up-d3" style="position: relative; z-index: 999;">
+    <a href="{% url 'about' %}" class="btn btn-gold btn-lg">Tentang Kami</a>
+    <a href="{% url 'teams' %}" class="btn btn-outline btn-lg">Kenali Tim Kami</a>
+  </div>
+
+  <div class="wave-container">
+    <svg class="wave-bg wave-bg-1" viewBox="0 0 1440 120" preserveAspectRatio="none">
+      <path d="M0,60 C360,120 720,0 1080,60 C1260,90 1380,30 1440,60 L1440,120 L0,120 Z" fill="rgba(13,59,110,0.15)"/>
+      <path d="M720,60 C1080,120 1440,0 1800,60 C1980,90 2100,30 2160,60 L2160,120 L720,120 Z" fill="rgba(13,59,110,0.15)"/>
+    </svg>
+    <svg class="wave-bg wave-bg-2" viewBox="0 0 1440 120" preserveAspectRatio="none">
+      <path d="M0,40 C480,100 960,0 1440,40 L1440,120 L0,120 Z" fill="rgba(10,42,74,0.2)"/>
+      <path d="M720,40 C1200,100 1680,0 2160,40 L2160,120 L720,120 Z" fill="rgba(10,42,74,0.2)"/>
+    </svg>
+  </div>
+</section>
+
+<!-- STATS -->
+<section class="stats-section">
+  <div class="stats-grid">
+    <div>
+      <div class="stat-number" data-count="500" data-suffix="+">0</div>
+      <div class="stat-label">Layanan Selesai</div>
+    </div>
+    <div>
+      <div class="stat-number" data-count="120" data-suffix="+">0</div>
+      <div class="stat-label">Klien Terpercaya</div>
+    </div>
+    <div>
+      <div class="stat-number" data-count="15" data-suffix="+">0</div>
+      <div class="stat-label">Tahun Pengalaman</div>
+    </div>
+  </div>
+</section>
+
+<!-- SERVICES -->
+<section class="services">
+  <div style="text-align:center;">
+    <p class="hero-badge" style="display:inline-flex;margin-bottom:1rem;">⛵ Layanan Kami</p>
+    <h2 class="section-title" data-fade>Solusi Keagenan Kapal <span style="color:var(--foam)">Lengkap</span></h2>
+    <p class="section-subtitle" data-fade>Kami menyediakan layanan agen kapal dan layanan husbandry yang menyeluruh untuk kebutuhan bisnis Anda.</p>
+  </div>
+  <div class="services-grid">
+    {% for l in layanan %}
+    <div class="service-card" data-fade>
+      <span class="service-icon">{{ l.emoji }}</span>
+      <h3>{{ l.nama }}</h3>
+      <p>{{ l.deskripsi }}.</p>
+      <div class="service-card-line"></div>
+    </div>
+    {% endfor %}
+  </div>
+</section>
+
+<!-- TEAM PREVIEW -->
+{% if team %}
+<section class="team-section" style="padding-top:2rem;">
+  <div style="text-align:center;">
+    <p class="hero-badge" style="display:inline-flex;margin-bottom:1rem;">👥 Tim Kami</p>
+    <h2 class="section-title" data-fade>Profesional <span style="color:var(--foam)">Berpengalaman</span></h2>
+    <p class="section-subtitle" data-fade>Dipimpin oleh para ahli di bidang maritim dan logistik.</p>
+  </div>
+  <div class="team-grid">
+    {% for member in team|slice:":4" %}
+    <div class="team-card" data-fade>
+      <div class="team-photo-wrap">
+        {% if member.foto %}
+          <img src="{{ member.foto.url }}" alt="{{ member.nama }}">
+        {% else %}
+          <div class="team-photo-placeholder">⚓</div>
+        {% endif %}
+      </div>
+      <div class="team-info">
+        <h3>{{ member.nama }}</h3>
+        <div class="jabatan">{{ member.jabatan }}</div>
+        {% if member.bio %}<div class="bio">{{ member.bio|truncatewords:15 }}</div>{% endif %}
+      </div>
+    </div>
+    {% endfor %}
+  </div>
+  <div style="text-align:center;margin-top:2rem;">
+    <a href="{% url 'teams' %}" class="btn btn-outline btn-lg">Lihat Semua Tim</a>
+  </div>
+</section>
+{% endif %}
+
+<!-- CTA -->
+<section class="cta-section">
+  <h2 class="section-title" data-fade>Siap Bekerja Sama?</h2>
+  <p data-fade>Hubungi kami hari ini dan temukan solusi logistik terbaik untuk bisnis Anda bersama PT Atika Jaya Samudera.</p>
+  <div data-fade>
+    <a href="mailto:info@atikajayasamudera.com" class="btn btn-gold btn-lg">Hubungi Kami</a>
+  </div>
+</section>
+
+{% endblock %}

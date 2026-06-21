@@ -1,0 +1,67 @@
+{% extends 'panel/base_panel.html' %}
+{% block title %}Pengguna{% endblock %}
+{% block breadcrumb %} / <span>Pengguna</span>{% endblock %}
+
+{% block content %}
+<div class="page-header">
+  <div><h1>🔑 Manajemen Pengguna</h1><div class="page-header-sub">Kelola akun dan hak akses pengguna sistem</div></div>
+  <a href="{% url 'user_create' %}" class="btn btn-primary">+ Tambah Pengguna</a>
+</div>
+
+<div class="card">
+  <div class="table-wrapper">
+    <table>
+      <thead>
+        <tr>
+          <th>Pengguna</th>
+          <th>Role</th>
+          <th>Jabatan</th>
+          <th>Email</th>
+          <th>No. HP</th>
+          <th>Status</th>
+          <th>Aksi</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for u in users %}
+        <tr>
+          <td>
+            <div style="display:flex;align-items:center;gap:.75rem;">
+              <div style="width:36px;height:36px;border-radius:50%;background:linear-gradient(135deg,var(--ocean),var(--sea));display:flex;align-items:center;justify-content:center;font-size:.9rem;overflow:hidden;flex-shrink:0;">
+                {% if u.profile.foto %}<img src="{{ u.profile.foto.url }}" alt="" style="width:100%;height:100%;object-fit:cover;">
+                {% else %}{{ u.username|first|upper }}{% endif %}
+              </div>
+              <div>
+                <strong style="color:var(--white);">{{ u.get_full_name|default:u.username }}</strong>
+                <br><span style="font-size:.75rem;color:var(--surf);">@{{ u.username }}</span>
+              </div>
+            </div>
+          </td>
+          <td>
+            {% if u.profile.role == 'admin' %}<span class="badge badge-admin">👑 Admin</span>
+            {% elif u.profile.role == 'karyawan' %}<span class="badge badge-karyawan">👤 Karyawan</span>
+            {% else %}<span class="badge" style="background:rgba(168,216,240,0.08);color:var(--surf);border:1px solid rgba(168,216,240,0.15);">🔭 Guest</span>{% endif %}
+          </td>
+          <td style="font-size:.85rem;">{{ u.profile.jabatan|default:"–" }}</td>
+          <td style="font-size:.85rem;"><a href="mailto:{{ u.email }}" style="color:var(--foam);">{{ u.email|default:"–" }}</a></td>
+          <td style="font-size:.85rem;">{{ u.profile.no_hp|default:"–" }}</td>
+          <td>
+            {% if u.is_active %}<span class="badge badge-hadir">Aktif</span>{% else %}<span class="badge badge-batal">Nonaktif</span>{% endif %}
+          </td>
+          <td>
+            <div style="display:flex;gap:.4rem;">
+              <a href="{% url 'user_edit' u.pk %}" class="btn btn-sm btn-outline">✏️</a>
+              {% if u.pk != request.user.pk %}
+              <a href="{% url 'user_delete' u.pk %}" class="btn btn-sm btn-danger" data-confirm="Hapus pengguna {{ u.username }}? Tindakan ini tidak dapat dibatalkan.">🗑</a>
+              {% endif %}
+            </div>
+          </td>
+        </tr>
+        {% empty %}
+        <tr><td colspan="7"><div class="empty-state"><div class="empty-state-icon">🔑</div><p>Belum ada pengguna.</p></div></td></tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+{% endblock %}

@@ -1,0 +1,46 @@
+{% extends 'panel/base_panel.html' %}
+{% block title %}Tim{% endblock %}
+{% block breadcrumb %} / <span>Tim</span>{% endblock %}
+
+{% block content %}
+<div class="page-header">
+  <div><h1>👥 Manajemen Tim</h1><div class="page-header-sub">Data anggota tim yang ditampilkan di halaman publik</div></div>
+  <a href="{% url 'team_create' %}" class="btn btn-primary">+ Tambah Anggota</a>
+</div>
+
+<div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(240px,1fr));gap:1.25rem;">
+  {% for member in team %}
+  <div class="card animate-fade-up" style="padding:1.25rem;text-align:center;">
+    <div style="width:80px;height:80px;border-radius:50%;overflow:hidden;margin:0 auto 1rem;border:2px solid rgba(77,182,245,0.2);background:var(--navy);display:flex;align-items:center;justify-content:center;font-size:2rem;">
+      {% if member.foto %}
+        <img src="{{ member.foto.url }}" alt="{{ member.nama }}" style="width:100%;height:100%;object-fit:cover;">
+      {% else %}⚓{% endif %}
+    </div>
+    <h3 style="font-size:1rem;color:var(--white);margin-bottom:.2rem;">{{ member.nama }}</h3>
+    <div style="font-size:.78rem;color:var(--foam);text-transform:uppercase;letter-spacing:.06em;margin-bottom:.4rem;">{{ member.jabatan }}</div>
+    <div style="display:flex;align-items:center;justify-content:center;gap:.4rem;margin-bottom:.75rem;">
+      {% if member.aktif %}
+        <span class="badge badge-hadir">Aktif</span>
+      {% else %}
+        <span class="badge badge-batal">Nonaktif</span>
+      {% endif %}
+      <span style="font-size:.75rem;color:var(--surf);">Urutan: {{ member.urutan }}</span>
+    </div>
+    {% if member.bio %}
+    <p style="font-size:.8rem;color:var(--surf);line-height:1.5;margin-bottom:.75rem;">{{ member.bio|truncatewords:12 }}</p>
+    {% endif %}
+    <div style="display:flex;gap:.5rem;justify-content:center;">
+      <a href="{% url 'team_edit' member.pk %}" class="btn btn-sm btn-outline">✏️ Edit</a>
+      <a href="{% url 'team_delete' member.pk %}" class="btn btn-sm btn-danger" data-confirm="Hapus anggota {{ member.nama }}?">🗑</a>
+    </div>
+  </div>
+  {% empty %}
+  <div style="grid-column:1/-1;">
+    <div class="empty-state">
+      <div class="empty-state-icon">👥</div>
+      <p>Belum ada anggota tim. <a href="{% url 'team_create' %}">Tambah sekarang</a></p>
+    </div>
+  </div>
+  {% endfor %}
+</div>
+{% endblock %}

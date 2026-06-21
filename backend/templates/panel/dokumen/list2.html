@@ -1,0 +1,312 @@
+{% extends 'panel/base_panel.html' %}
+{% load static %}
+{% block title %}Dokumen{% endblock %}
+
+{% block content %}
+<div class="container-fluid py-4">
+
+  <div class="d-flex justify-content-between align-items-center mb-4">
+    <h4 class="mb-0">📁 Manajemen Dokumen</h4>
+  </div>
+
+  <div class="card shadow-sm mb-4">
+    <div class="card-header bg-white fw-semibold">Upload Dokumen</div>
+    <div class="card-body">
+      <div id="uploadAlert"></div>
+      <form id="uploadForm" enctype="multipart/form-data">
+        {% csrf_token %}
+        <div class="row g-3 mb-3">
+
+          <div class="col-md-4">
+            <label class="form-label">Client <span class="text-muted">(opsional)</span></label>
+            <select name="client_id" class="form-select form-select-sm">
+              <option value="">— Pilih Client —</option>
+              {% for c in client_list %}
+                <option value="{{ c.pk }}">{{ c.nama }}</option>
+              {% endfor %}
+            </select>
+          </div>
+
+          <div class="col-md-4">
+            <label class="form-label">Shipment <span class="text-muted">(opsional)</span></label>
+            <select name="shipment_id" class="form-select form-select-sm">
+              <option value="">— Pilih Shipment —</option>
+              {% for s in shipment_list %}
+                <option value="{{ s.pk }}">{{ s.nomor_referensi }} — {{ s.client.nama }}</option>
+              {% endfor %}
+            </select>
+          </div>
+
+          <div class="col-md-4">
+            <label class="form-label">File <span class="text-muted">(bisa pilih banyak)</span></label>
+            <input type="file" name="files" id="fileInput"
+                   class="form-control form-control-sm"
+                   multiple accept=".pdf,.png,.jpg,.jpeg,.tiff">
+          </div>
+
+        </div>
+        <button type="submit" id="uploadBtn" class="btn btn-primary btn-sm px-4">
+          <i class="bi bi-cloud-upload"></i> Upload
+        </button>
+      </form>
+    </div>
+  </div>
+
+  <div class="card shadow-sm mb-4">
+    <div class="card-body py-2">
+      <div class="row g-2 align-items-center">
+
+        <div class="col-md-5">
+          <input type="text" id="searchInput" class="form-control form-control-sm"
+                 placeholder="🔍 Cari nama file, judul, isi dokumen...">
+        </div>
+
+        <div class="col-md-3">
+          <select id="filterKategori" class="form-select form-select-sm">
+            <option value="">Semua Kategori</option>
+            {% for k in kategori_list %}
+              <option value="{{ k.pk }}">{{ k.judul }}</option>
+            {% endfor %}
+          </select>
+        </div>
+
+        <div class="col-md-2">
+          <select id="filterClient" class="form-select form-select-sm">
+            <option value="">Semua Client</option>
+            {% for c in client_list %}
+              <option value="{{ c.pk }}">{{ c.nama }}</option>
+            {% endfor %}
+          </select>
+        </div>
+
+        <div class="col-md-2">
+          <button class="btn btn-outline-secondary btn-sm w-100"
+                  onclick="resetFilters()">Reset</button>
+        </div>
+
+      </div>
+    </div>
+  </div>
+
+  <div class="card shadow-sm">
+    <div class="card-body p-0">
+      <div class="table-responsive">
+        <table class="table table-hover table-sm mb-0 align-middle">
+          <thead class="table-light">
+            <tr>
+              <th>File</th>
+              <th>Kategori</th>
+              <th>Client</th>
+              <th>Shipment</th>
+              <th>Upload</th>
+              <th>OCR</th>
+              <th>Engine</th>
+              <th>Tanggal</th>
+              <th>Diupload Oleh</th>
+              {% if is_admin %}<th>Aksi</th>{% endif %}
+            </tr>
+          </thead>
+          <tbody id="dokumenTableBody">
+            <tr>
+              <td colspan="10" class="text-center py-4 text-muted">
+                <div class="spinner-border spinner-border-sm me-2"></div>Memuat...
+              </td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+    <div class="card-footer bg-white d-flex justify-content-between align-items-center py-2">
+      <small id="pageInfo" class="text-muted"></small>
+      <div class="d-flex gap-2">
+        <button class="btn btn-outline-secondary btn-sm"
+                id="prevBtn" onclick="changePage(-1)" disabled>‹ Prev</button>
+        <button class="btn btn-outline-secondary btn-sm"
+                id="nextBtn" onclick="changePage(1)" disabled>Next ›</button>
+      </div>
+    </div>
+  </div>
+
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+const IS_ADMIN    = {{ is_admin|yesno:"true,false" }};
+const CSRF_TOKEN  = '{{ csrf_token }}';
+let currentPage   = 1;
+let searchTimeout = null;
+
+// ── Load table ─────────────────────────────────────────────────
+async function loadDokumen(page = 1) {
+  currentPage = page;
+  const q         = document.getElementById('searchInput').value;
+  const kategori  = document.getElementById('filterKategori').value;
+  const client    = document.getElementById('filterClient').value;
+
+  const params = new URLSearchParams({ page, per_page: 20 });
+  if (q)       params.set('q', q);
+  if (kategori) params.set('kategori_id', kategori);
+  if (client)   params.set('client_id', client);
+
+  try {
+    const res  = await fetch(`/api/dokumen/?${params}`);
+    const data = await res.json();
+    renderTable(data.items);
+    renderPagination(data);
+  } catch (e) {
+    console.error('Load dokumen error:', e);
+  }
+}
+
+function renderTable(items) {
+  const tbody = document.getElementById('dokumenTableBody');
+  const cols  = IS_ADMIN ? 10 : 9;
+
+  if (!items.length) {
+    tbody.innerHTML = `
+      <tr><td colspan="${cols}" class="text-center py-4 text-muted">
+        Tidak ada dokumen ditemukan.
+      </td></tr>`;
+    return;
+  }
+
+  tbody.innerHTML = items.map(d => `
+    <tr>
+      <td>
+        <div class="fw-semibold text-truncate" style="max-width:200px"
+             title="${esc(d.nama_file)}">${esc(d.nama_file)}</div>
+        ${d.judul ? `<small class="text-muted">${esc(d.judul)}</small>` : ''}
+        <div><small class="text-muted">${formatBytes(d.ukuran)}</small></div>
+      </td>
+      <td><span class="badge bg-secondary">${esc(d.kategori)}</span></td>
+      <td><small>${esc(d.client)}</small></td>
+      <td><small>${esc(d.shipment)}</small></td>
+      <td>${statusBadge(d.upload_status, d.upload_progress)}</td>
+      <td>${statusBadge(d.ocr_status, d.ocr_progress)}</td>
+      <td><small class="text-muted">${esc(d.ocr_engine) || '—'}</small></td>
+      <td><small>${new Date(d.created_at).toLocaleDateString('id-ID')}</small></td>
+      <td><small>${esc(d.uploaded_by)}</small></td>
+      ${IS_ADMIN ? `
+      <td>
+        ${d.signed_url
+          ? `<a href="${d.signed_url}" target="_blank" rel="noopener"
+                class="btn btn-outline-primary btn-sm">👁 Lihat</a>`
+          : '<span class="text-muted">—</span>'}
+        <button class="btn btn-outline-danger btn-sm ms-1"
+                onclick="deleteDokumen(${d.id})">🗑</button>
+      </td>` : ''}
+    </tr>
+  `).join('');
+}
+
+function statusBadge(status, progress) {
+  const map = {
+    pending:    ['bg-secondary',        '⏳ Antri'],
+    uploading:  ['bg-info text-dark',   `⬆ ${progress}%`],
+    uploaded:   ['bg-success',          '✓ Upload'],
+    processing: ['bg-warning text-dark',`🔍 ${progress}%`],
+    done:       ['bg-success',          '✓ OCR'],
+    failed:     ['bg-danger',           '✗ Gagal'],
+  };
+  const [cls, label] = map[status] || ['bg-light text-dark', status];
+  return `<span class="badge ${cls}">${label}</span>`;
+}
+
+function renderPagination(data) {
+  document.getElementById('pageInfo').textContent =
+    `Halaman ${data.page} dari ${data.pages} · ${data.total} dokumen`;
+  document.getElementById('prevBtn').disabled = !data.has_prev;
+  document.getElementById('nextBtn').disabled = !data.has_next;
+}
+
+function changePage(dir) { loadDokumen(currentPage + dir); }
+
+function resetFilters() {
+  document.getElementById('searchInput').value    = '';
+  document.getElementById('filterKategori').value = '';
+  document.getElementById('filterClient').value   = '';
+  loadDokumen(1);
+}
+
+// ── Upload ──────────────────────────────────────────────────────
+document.getElementById('uploadForm').addEventListener('submit', async (e) => {
+  e.preventDefault();
+  const btn   = document.getElementById('uploadBtn');
+  const alert = document.getElementById('uploadAlert');
+  btn.disabled    = true;
+  btn.textContent = 'Mengupload...';
+  alert.innerHTML = '';
+
+  try {
+    const res  = await fetch('/api/dokumen/upload/', {
+      method:  'POST',
+      headers: { 'X-CSRFToken': CSRF_TOKEN },
+      body:    new FormData(e.target),
+    });
+    const data = await res.json();
+
+    if (data.uploaded) {
+      data.uploaded.forEach(u =>
+        window.DokumenProgress.track(u.dokumen_id, u.nama_file)
+      );
+      alert.innerHTML = `
+        <div class="alert alert-success alert-dismissible py-2 mb-3">
+          ${data.uploaded.length} file berhasil dikirim ke antrian upload.
+          <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+        </div>`;
+      e.target.reset();
+      loadDokumen(1);
+    } else {
+      alert.innerHTML = `
+        <div class="alert alert-danger py-2 mb-3">${data.error || 'Upload gagal.'}</div>`;
+    }
+  } catch (err) {
+    alert.innerHTML = `
+      <div class="alert alert-danger py-2 mb-3">Terjadi kesalahan: ${err.message}</div>`;
+  } finally {
+    btn.disabled    = false;
+    btn.innerHTML   = '<i class="bi bi-cloud-upload"></i> Upload';
+  }
+});
+
+// ── Search with debounce ────────────────────────────────────────
+document.getElementById('searchInput').addEventListener('input', () => {
+  clearTimeout(searchTimeout);
+  searchTimeout = setTimeout(() => loadDokumen(1), 350);
+});
+document.getElementById('filterKategori').addEventListener('change', () => loadDokumen(1));
+document.getElementById('filterClient').addEventListener('change',   () => loadDokumen(1));
+
+// ── Delete ──────────────────────────────────────────────────────
+async function deleteDokumen(id) {
+  if (!confirm('Hapus dokumen ini? Tindakan ini tidak dapat dibatalkan.')) return;
+  try {
+    await fetch(`/api/dokumen/${id}/delete/`, {
+      method:  'DELETE',
+      headers: { 'X-CSRFToken': CSRF_TOKEN },
+    });
+    loadDokumen(currentPage);
+  } catch (e) {
+    alert('Gagal menghapus dokumen.');
+  }
+}
+
+// ── Helpers ─────────────────────────────────────────────────────
+function esc(s) {
+  return String(s ?? '').replace(/[&<>"']/g, c =>
+    ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+}
+function formatBytes(b) {
+  if (!b) return '—';
+  if (b < 1024)    return b + ' B';
+  if (b < 1048576) return (b / 1024).toFixed(1) + ' KB';
+  return (b / 1048576).toFixed(1) + ' MB';
+}
+
+// ── Init ─────────────────────────────────────────────────────────
+loadDokumen();
+// Auto-refresh every 15s to pick up status changes from Celery
+setInterval(() => loadDokumen(currentPage), 15000);
+</script>
+{% endblock %}

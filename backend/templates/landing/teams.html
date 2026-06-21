@@ -1,0 +1,43 @@
+{% extends 'landing/base_landing.html' %}
+{% block title %}Tim Kami – PT Atika Jaya Samudera{% endblock %}
+
+{% block content %}
+<section style="padding:10rem 5% 6rem;">
+  <div style="text-align:center;max-width:600px;margin:0 auto 3.5rem;">
+    <div class="hero-badge" style="display:inline-flex;margin-bottom:1rem;">👥 Tim Profesional</div>
+    <h1 class="hero-title animate-fade-up" style="font-size:clamp(2rem,5vw,3.5rem);">
+      Orang-Orang <span class="accent">Terbaik</span> Kami
+    </h1>
+    <p class="hero-sub animate-fade-up-d1">
+      Tim berpengalaman yang berdedikasi menghadirkan layanan maritim terbaik untuk Anda.
+    </p>
+  </div>
+
+  {% if team %}
+  <div class="team-grid" style="max-width:1200px;margin:0 auto;">
+    {% for member in team %}
+    <div class="team-card animate-fade-up" style="animation-delay:{{ forloop.counter0|add:1 }}00ms;">
+      <div class="team-photo-wrap">
+        {% if member.foto %}
+          <img src="{{ member.foto.url }}" alt="{{ member.nama }}">
+        {% else %}
+          <div class="team-photo-placeholder">⚓</div>
+        {% endif %}
+      </div>
+      <div class="team-info">
+        <h3>{{ member.nama }}</h3>
+        <div class="jabatan">{{ member.jabatan }}</div>
+        {% if member.bio %}<div class="bio">{{ member.bio }}</div>{% endif %}
+      </div>
+    </div>
+    {% endfor %}
+  </div>
+  {% else %}
+  <div class="empty-state" style="max-width:400px;margin:0 auto;">
+    <div class="empty-state-icon">👥</div>
+    <h3 style="color:var(--white);margin-bottom:.5rem;">Tim belum tersedia</h3>
+    <p>Informasi tim sedang dalam persiapan.</p>
+  </div>
+  {% endif %}
+</section>
+{% endblock %}

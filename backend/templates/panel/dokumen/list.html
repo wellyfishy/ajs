@@ -1,0 +1,108 @@
+{% extends 'panel/base_panel.html' %}
+{% block title %}Dokumen{% endblock %}
+{% block breadcrumb %} / <span>Dokumen</span>{% endblock %}
+
+{% block content %}
+<div class="page-header">
+  <div><h1>📋 Rekap Dokumen</h1>
+    <div class="page-header-sub">
+      Gudang dokumen digital pada PT Atika Jaya Samudera
+    </div>
+  </div>
+  <div style="display:flex;gap:.75rem;">
+    <a href="{% url 'absen_masuk' %}" class="btn btn-primary">✅ Absen Masuk</a>
+    <a href="{% url 'absen_keluar' %}" class="btn btn-outline">🚪 Absen Keluar</a>
+  </div>
+</div>
+
+<!-- SUMMARY -->
+<div class="absensi-summary-cards">
+  <div class="absensi-card">
+    <div class="absensi-card-val" style="color:var(--success);">{{ absensi|length }}</div>
+    <div class="absensi-card-lbl">Dokumen terklasifikasi</div>
+  </div>
+  <div class="absensi-card">
+    <div class="absensi-card-val" style="color:var(--foam);">
+      {% with hadir_count=0 %}
+        {{ absensi|dictsortreversed:"tanggal"|length }}
+      {% endwith %}
+    </div>
+    <div class="absensi-card-lbl">Dokumen belum terklasifikasi</div>
+  </div>
+</div>
+
+<div class="filter-row">
+  <select class="form-control" id="filter-status" style="width:auto;">
+    <option value="">Semua Kategori</option>
+    <option value="-">-</option>
+  </select>
+  {% if request.user.profile.role == 'admin' %}
+  <div class="search-input-wrap">
+    <span class="search-icon">🔍</span>
+    <input type="text" class="form-control" id="search-input" placeholder="Cari nama/isi/kategori dokumen..." style="width:300px;">
+  </div>
+  {% endif %}
+</div>
+
+<div class="card">
+  <div class="table-wrapper">
+    <table id="absensi-table">
+      <thead>
+        <tr>
+          {% if request.user.profile.role == 'admin' %}<th>Karyawan</th>{% endif %}
+          <th>Tanggal</th>
+          <th>Status</th>
+          <th>Jam Masuk</th>
+          <th>Jam Keluar</th>
+          <th>Durasi</th>
+          <th>Keterangan</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for a in absensi %}
+        <tr data-status="{{ a.status }}" data-search="{{ a.user.username|lower }} {{ a.user.get_full_name|lower }}">
+          {% if request.user.profile.role == 'admin' %}
+          <td>
+            <strong style="color:var(--white);">{{ a.user.get_full_name|default:a.user.username }}</strong>
+            <br><span style="font-size:.75rem;color:var(--surf);">{{ a.user.username }}</span>
+          </td>
+          {% endif %}
+          <td style="font-weight:600;color:var(--white);">{{ a.tanggal|date:"l, d M Y" }}</td>
+          <td><span class="badge badge-{{ a.status }}">{{ a.get_status_display }}</span></td>
+          <td style="font-size:.88rem;">{{ a.jam_masuk|time:"H:i"|default:"–" }}</td>
+          <td style="font-size:.88rem;">{{ a.jam_keluar|time:"H:i"|default:"–" }}</td>
+          <td style="font-size:.82rem;color:var(--surf);">
+            {% if a.jam_masuk and a.jam_keluar %}
+              {% comment %}Duration calculated via template — simplified display{% endcomment %}
+              {{ a.jam_masuk|time:"H:i" }} – {{ a.jam_keluar|time:"H:i" }}
+            {% else %}–{% endif %}
+          </td>
+          <td style="font-size:.82rem;">{{ a.keterangan|default:"–" }}</td>
+        </tr>
+        {% empty %}
+        <tr><td colspan="7"><div class="empty-state"><div class="empty-state-icon">📋</div><p>Belum ada data absensi.</p></div></td></tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+  const fs = document.getElementById('filter-status');
+  const si = document.getElementById('search-input');
+  const rows = document.querySelectorAll('#absensi-table tbody tr[data-status]');
+  function filter() {
+    const q = si ? si.value.toLowerCase() : '';
+    const st = fs.value;
+    rows.forEach(r => {
+      const mq = !q || r.dataset.search.includes(q);
+      const ms = !st || r.dataset.status === st;
+      r.style.display = mq && ms ? '' : 'none';
+    });
+  }
+  fs.addEventListener('change', filter);
+  if (si) si.addEventListener('input', filter);
+</script>
+{% endblock %}

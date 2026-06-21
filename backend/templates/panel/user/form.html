@@ -1,0 +1,110 @@
+{% extends 'panel/base_panel.html' %}
+{% block title %}{% if edit_user %}Edit{% else %}Tambah{% endif %} Pengguna{% endblock %}
+{% block breadcrumb %} / <a href="{% url 'user_list' %}">Pengguna</a> / <span>{% if edit_user %}Edit{% else %}Tambah{% endif %}</span>{% endblock %}
+
+{% block content %}
+<div class="page-header">
+  <div><h1>{% if edit_user %}✏️ Edit Pengguna{% else %}🔑 Tambah Pengguna Baru{% endif %}</h1>
+    {% if edit_user %}<div class="page-header-sub">@{{ edit_user.username }}</div>{% endif %}
+  </div>
+  <a href="{% url 'user_list' %}" class="btn btn-outline">← Kembali</a>
+</div>
+
+<div style="display:grid;grid-template-columns:3fr 2fr;gap:1.5rem;align-items:start;">
+  <div class="card animate-fade-up">
+    <form method="post" enctype="multipart/form-data">
+      {% csrf_token %}
+
+      {% if not edit_user %}
+      <h3 style="font-size:.8rem;text-transform:uppercase;letter-spacing:.06em;color:var(--surf);font-family:var(--font-body);margin-bottom:1rem;">Kredensial Akun</h3>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:1rem;">
+        <div class="form-group">
+          <label class="form-label">Username *</label>
+          <input type="text" name="username" class="form-control" required placeholder="username_unik">
+        </div>
+        <div class="form-group">
+          <label class="form-label">Password *</label>
+          <input type="password" name="password" class="form-control" required placeholder="Min. 8 karakter">
+        </div>
+      </div>
+      <div class="divider"></div>
+      {% endif %}
+
+      <h3 style="font-size:.8rem;text-transform:uppercase;letter-spacing:.06em;color:var(--surf);font-family:var(--font-body);margin-bottom:1rem;">Informasi Pribadi</h3>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:1rem;">
+        <div class="form-group">
+          <label class="form-label">Nama Depan</label>
+          <input type="text" name="first_name" class="form-control" value="{{ edit_user.first_name|default:'' }}" placeholder="Nama depan">
+        </div>
+        <div class="form-group">
+          <label class="form-label">Nama Belakang</label>
+          <input type="text" name="last_name" class="form-control" value="{{ edit_user.last_name|default:'' }}" placeholder="Nama belakang">
+        </div>
+      </div>
+      <div class="form-group">
+        <label class="form-label">Email</label>
+        <input type="email" name="email" class="form-control" value="{{ edit_user.email|default:'' }}" placeholder="email@example.com">
+      </div>
+
+      <div class="divider"></div>
+      <h3 style="font-size:.8rem;text-transform:uppercase;letter-spacing:.06em;color:var(--surf);font-family:var(--font-body);margin-bottom:1rem;">Profil & Hak Akses</h3>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:1rem;">
+        <div class="form-group">
+          <label class="form-label">Role</label>
+          <select name="role" class="form-control">
+            <option value="guest"    {% if profile.role == 'guest' %}selected{% endif %}>🔭 Guest</option>
+            <option value="karyawan" {% if profile.role == 'karyawan' %}selected{% endif %}>👤 Karyawan</option>
+            <option value="admin"    {% if profile.role == 'admin' %}selected{% endif %}>👑 Admin</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <label class="form-label">Jabatan</label>
+          <input type="text" name="jabatan" class="form-control" value="{{ profile.jabatan|default:'' }}" placeholder="Jabatan / posisi">
+        </div>
+      </div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:1rem;">
+        <div class="form-group">
+          <label class="form-label">No. HP</label>
+          <input type="text" name="no_hp" class="form-control" value="{{ profile.no_hp|default:'' }}" placeholder="+62 xxx xxxx xxxx">
+        </div>
+        <div class="form-group">
+          <label class="form-label">Foto Profil</label>
+          <input type="file" name="foto" class="form-control" accept="image/*">
+        </div>
+      </div>
+
+      {% if edit_user %}
+      <div class="divider"></div>
+      <div class="form-group">
+        <label class="form-label">Password Baru <span style="color:var(--surf);font-weight:400;">(kosongkan jika tidak diganti)</span></label>
+        <input type="password" name="password" class="form-control" placeholder="Isi untuk mengganti password">
+      </div>
+      {% endif %}
+
+      <div style="display:flex;gap:.75rem;margin-top:.5rem;">
+        <button type="submit" class="btn btn-primary">{% if edit_user %}💾 Simpan Perubahan{% else %}✅ Buat Pengguna{% endif %}</button>
+        <a href="{% url 'user_list' %}" class="btn btn-outline">Batal</a>
+      </div>
+    </form>
+  </div>
+
+  <div class="card animate-fade-up-d1">
+    <h3 style="font-size:.85rem;color:var(--surf);text-transform:uppercase;letter-spacing:.05em;margin-bottom:1rem;font-family:var(--font-body);">Tingkatan Hak Akses</h3>
+    <div style="display:flex;flex-direction:column;gap:.75rem;">
+      <div style="padding:.75rem;background:rgba(201,168,76,0.07);border:1px solid rgba(201,168,76,0.15);border-radius:var(--radius-sm);">
+        <div style="display:flex;align-items:center;gap:.4rem;margin-bottom:.35rem;"><span class="badge badge-admin">👑 Admin</span></div>
+        <p style="font-size:.78rem;color:var(--surf);">Akses penuh ke semua fitur termasuk manajemen pengguna, riwayat, dan pengaturan sistem.</p>
+      </div>
+      <div style="padding:.75rem;background:rgba(41,128,196,0.07);border:1px solid rgba(41,128,196,0.15);border-radius:var(--radius-sm);">
+        <div style="display:flex;align-items:center;gap:.4rem;margin-bottom:.35rem;"><span class="badge badge-karyawan">👤 Karyawan</span></div>
+        <p style="font-size:.78rem;color:var(--surf);">Akses ke shipment, client, todo, dan absensi. Tidak dapat hapus client atau akses manajemen pengguna.</p>
+      </div>
+      <div style="padding:.75rem;background:rgba(168,216,240,0.04);border:1px solid rgba(168,216,240,0.1);border-radius:var(--radius-sm);">
+        <div style="display:flex;align-items:center;gap:.4rem;margin-bottom:.35rem;"><span class="badge" style="background:rgba(168,216,240,0.08);color:var(--surf);border:1px solid rgba(168,216,240,0.15);">🔭 Guest</span></div>
+        <p style="font-size:.78rem;color:var(--surf);">Hanya akses dashboard dan todo list.</p>
+      </div>
+    </div>
+  </div>
+</div>
+<style>@media(max-width:768px){div[style*="grid-template-columns:3fr 2fr"]{grid-template-columns:1fr!important;}div[style*="grid-template-columns:1fr 1fr"]{grid-template-columns:1fr!important;}}</style>
+{% endblock %}

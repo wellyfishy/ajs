@@ -1,0 +1,144 @@
+{% extends 'panel/base_panel.html' %}
+{% block title %}{% if shipment %}Edit{% else %}Tambah{% endif %} Shipment{% endblock %}
+{% block breadcrumb %} / <a href="{% url 'shipment_list' %}">Shipment</a> / <span>{% if shipment %}Edit{% else %}Tambah{% endif %}</span>{% endblock %}
+
+{% block content %}
+<div class="page-header">
+  <div>
+    <h1>{% if shipment %}✏️ Edit Shipment{% else %}🚢 Tambah Shipment Baru{% endif %}</h1>
+    <div class="page-header-sub">{% if shipment %}{{ shipment.nomor_referensi }}{% else %}Isi detail shipment di bawah ini{% endif %}</div>
+  </div>
+  <a href="{% url 'shipment_list' %}" class="btn btn-outline">← Kembali</a>
+</div>
+
+<div style="display:grid;grid-template-columns:2fr 1fr;gap:1.5rem;align-items:start;">
+  <div class="card animate-fade-up">
+    <form method="post" enctype="multipart/form-data">
+      {% csrf_token %}
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:1rem;">
+        <div class="form-group">
+          <label class="form-label">Nomor Referensi *</label>
+          <input type="text" name="nomor_referensi" class="form-control" value="{{ shipment.nomor_referensi|default:'' }}" required placeholder="Contoh: AJS-2024-001">
+        </div>
+        <div class="form-group">
+          <label class="form-label">Status *</label>
+          <select name="status" class="form-control">
+            <option value="pending"  {% if shipment.status == 'pending' %}selected{% endif %}>Pending</option>
+            <option value="proses"   {% if shipment.status == 'proses' %}selected{% endif %}>Dalam Proses</option>
+            <option value="selesai"  {% if shipment.status == 'selesai' %}selected{% endif %}>Selesai</option>
+            <option value="batal"    {% if shipment.status == 'batal' %}selected{% endif %}>Dibatalkan</option>
+          </select>
+        </div>
+      </div>
+
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:1rem;">
+        <div class="form-group">
+          <label class="form-label">Client *</label>
+          <select name="client" class="form-control" required>
+            <option value="">– Pilih Client –</option>
+            {% for c in clients %}
+            <option value="{{ c.pk }}" {% if shipment.client.pk == c.pk %}selected{% endif %}>{{ c.nama }} {% if c.perusahaan %}({{ c.perusahaan }}){% endif %}</option>
+            {% endfor %}
+          </select>
+        </div>
+        <div class="form-group">
+          <label class="form-label">PIC (Penanggung Jawab) *</label>
+          <select name="pic" class="form-control" required>
+            <option value="">– Pilih PIC –</option>
+            {% for u in users %}
+            <option value="{{ u.pk }}" {% if shipment.pic.pk == u.pk %}selected{% endif %}>{{ u.get_full_name|default:u.username }}</option>
+            {% endfor %}
+          </select>
+        </div>
+      </div>
+
+      <div class="form-group">
+        <label class="form-label">Layanan *</label>
+        <select name="layanan" class="form-control" required>
+          <option value="">– Pilih Layanan –</option>
+          {% for l in layanan %}
+          <option value="{{ l.pk }}" {% if shipment.layanan.pk == l.pk %}selected{% endif %}>{{ l.nama }}</option>
+          {% endfor %}
+        </select>
+      </div>
+
+      <div class="form-group">
+        <label class="form-label">Deskripsi Shipment (Opsional)</label>
+        <textarea name="deskripsi" class="form-control" placeholder="Keterangan muatan, tujuan, dll...">{{ shipment.deskripsi|default:'' }}</textarea>
+      </div>
+
+      <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:1rem;">
+        
+        <div class="form-group">
+          <label class="form-label">Tanggal Request *</label>
+          <input type="date" name="tanggal_request" class="form-control" value="{{ shipment.tanggal_request|date:'Y-m-d'|default:'' }}" required>
+        </div>
+        <div class="form-group">
+          <label class="form-label">Tanggal Selesai (Opsional)</label>
+          <input type="date" name="tanggal_selesai" class="form-control" value="{{ shipment.tanggal_selesai|date:'Y-m-d'|default:'' }}">
+        </div>
+        <div class="form-group">
+          <label class="form-label">Tanggal Deadline *</label>
+          <input type="date" name="tanggal_deadline" class="form-control" value="{{ shipment.tanggal_deadline|date:'Y-m-d'|default:'' }}" required>
+        </div>
+      </div>
+
+      <div class="form-group">
+        <label class="form-label">Catatan (Opsional)</label>
+        <textarea name="catatan" class="form-control" placeholder="Catatan tambahan...">{{ shipment.catatan|default:'' }}</textarea>
+      </div>
+
+      <div class="form-group">
+        <label class="form-label">Dokumen (Opsional) {% if shipment.dokumen %}(Sudah ada dokumen){% endif %}</label>
+        <input type="file" name="dokumen" class="form-control" accept=".pdf,.doc,.docx,.xls,.xlsx">
+        {% if shipment.dokumen %}
+        <div style="margin-top:.5rem;font-size:.82rem;color:var(--foam);">
+          📄 <a href="{{ shipment.dokumen.url }}" target="_blank">Lihat dokumen sekarang</a>
+        </div>
+        {% endif %}
+      </div>
+
+      <div style="display:flex;gap:.75rem;margin-top:.5rem;">
+        <button type="submit" class="btn btn-primary btn-lg">{% if shipment %}💾 Simpan Perubahan{% else %}✅ Tambah Shipment{% endif %}</button>
+        <a href="{% url 'shipment_list' %}" class="btn btn-outline btn-lg">Batal</a>
+      </div>
+    </form>
+  </div>
+
+  <!-- SIDEBAR INFO -->
+  <div>
+    <div class="card animate-fade-up-d1" style="margin-bottom:1rem;">
+      <h3 style="font-size:.85rem;color:var(--surf);text-transform:uppercase;letter-spacing:.05em;margin-bottom:1rem;font-family:var(--font-body);">Status Alur</h3>
+      {% for val, label in shipment.STATUS_CHOICES|default:"" %}{% endfor %}
+      <div style="display:flex;flex-direction:column;gap:.5rem;">
+        {% for status_key, status_label in shipment_statuses %}
+        <div style="display:flex;align-items:center;gap:.5rem;font-size:.85rem;">
+          <span class="badge badge-{{ status_key }}" style="width:80px;justify-content:center;">{{ status_label }}</span>
+        </div>
+        {% endfor %}
+        <div style="display:flex;align-items:center;gap:.5rem;font-size:.85rem;"><span class="badge badge-pending" style="width:80px;justify-content:center;">Pending</span> → Baru masuk</div>
+        <div style="display:flex;align-items:center;gap:.5rem;font-size:.85rem;"><span class="badge badge-proses" style="width:80px;justify-content:center;">Proses</span> → Dalam pengerjaan</div>
+        <div style="display:flex;align-items:center;gap:.5rem;font-size:.85rem;"><span class="badge badge-selesai" style="width:80px;justify-content:center;">Selesai</span> → Terkirim</div>
+        <div style="display:flex;align-items:center;gap:.5rem;font-size:.85rem;"><span class="badge badge-batal" style="width:80px;justify-content:center;">Batal</span> → Dibatalkan</div>
+      </div>
+    </div>
+    {% if shipment %}
+    <div class="card animate-fade-up-d2">
+      <h3 style="font-size:.85rem;color:var(--surf);text-transform:uppercase;letter-spacing:.05em;margin-bottom:1rem;font-family:var(--font-body);">Info Shipment</h3>
+      <div style="font-size:.82rem;color:var(--surf);display:flex;flex-direction:column;gap:.5rem;">
+        <div>Dibuat: {{ shipment.created_at|date:"d M Y H:i" }}</div>
+        <div>Diupdate: {{ shipment.updated_at|date:"d M Y H:i" }}</div>
+      </div>
+    </div>
+    {% endif %}
+  </div>
+</div>
+
+<style>
+  @media (max-width:768px) {
+    div[style*="grid-template-columns:2fr 1fr"] { grid-template-columns: 1fr !important; }
+    div[style*="grid-template-columns:1fr 1fr 1fr"] { grid-template-columns: 1fr !important; }
+    div[style*="grid-template-columns:1fr 1fr"] { grid-template-columns: 1fr !important; }
+  }
+</style>
+{% endblock %}

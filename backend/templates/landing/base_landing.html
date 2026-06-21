@@ -1,0 +1,103 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="id">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>{% block title %}PT Atika Jaya Samudera{% endblock %}</title>
+  <meta name="description" content="PT Atika Jaya Samudera – Mitra logistik dan pengiriman terpercaya Anda.">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@400;600;700&family=DM+Sans:wght@300;400;500;600&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="{% static 'css/main.css' %}">
+  <link rel="stylesheet" href="{% static 'css/landing.css' %}">
+  <link href="{% static 'img/icons/favicon.png' %}" rel="icon">
+  <link href="{% static 'img/icons/favicon.png' %}" rel="apple-touch-icon">
+  {% block extra_css %}{% endblock %}
+</head>
+<body class="ocean-bg">
+  <canvas id="particles-canvas"></canvas>
+
+  <!-- NAV -->
+  <nav class="landing-nav content-layer">
+    <a href="{% url 'index' %}" class="nav-logo">
+      <div class="nav-logo-icon">⚓</div>
+      <div>
+        <div class="nav-logo-text">Atika Jaya Samudera</div>
+        <div class="nav-logo-sub">PT · Shipping Agency</div>
+      </div>
+    </a>
+    <div class="nav-links">
+      <a href="{% url 'index' %}" class="{% if request.resolver_match.url_name == 'index' %}active{% endif %}">Beranda</a>
+      <a href="{% url 'about' %}" class="{% if request.resolver_match.url_name == 'about' %}active{% endif %}">Tentang</a>
+      <a href="{% url 'teams' %}" class="{% if request.resolver_match.url_name == 'teams' %}active{% endif %}">Tim</a>
+      {% if user.is_authenticated %}
+        <a href="{% url 'dashboard' %}" class="btn btn-outline" style="padding:.4rem 1rem;">Dashboard</a>
+        <a href="{% url 'logout' %}" class="btn btn-primary" style="padding:.4rem 1rem;">Keluar</a>
+      {% else %}
+        <a href="{% url 'login' %}" class="btn btn-primary" style="padding:.4rem 1rem;">Masuk</a>
+      {% endif %}
+    </div>
+    <button class="nav-hamburger" aria-label="Menu">☰</button>
+  </nav>
+
+  <!-- MESSAGES -->
+  {% if messages %}
+  <div class="content-layer" style="position:fixed;top:80px;right:1rem;z-index:200;max-width:360px;width:100%;">
+    {% for msg in messages %}
+    <div class="alert alert-{% if msg.tags == 'error' %}error{% elif msg.tags == 'success' %}success{% elif msg.tags == 'warning' %}warning{% else %}info{% endif %}">
+      {% if msg.tags == 'success' %}✓{% elif msg.tags == 'error' %}✕{% else %}ℹ{% endif %}
+      {{ msg }}
+    </div>
+    {% endfor %}
+  </div>
+  {% endif %}
+
+  <main class="content-layer">
+    {% block content %}{% endblock %}
+  </main>
+
+  <!-- FOOTER -->
+  <footer class="landing-footer content-layer">
+    <div class="footer-grid">
+      <div class="footer-brand">
+        <a href="{% url 'index' %}" class="nav-logo" style="display:inline-flex;margin-bottom:.5rem;">
+          <div class="nav-logo-icon" style="width:34px;height:34px;font-size:1.1rem;">⚓</div>
+          <div>
+            <div class="nav-logo-text" style="font-size:.9rem;">Atika Jaya Samudera</div>
+            <div class="nav-logo-sub">PT · Shipping Agency</div>
+          </div>
+        </a>
+        <p>Mitra agen kapal terpercaya. Menghubungkan nusantara dengan armada dan layanan terbaik.</p>
+      </div>
+      <div class="footer-links">
+        <h4>Navigasi</h4>
+        <ul>
+          <li><a href="{% url 'index' %}">Beranda</a></li>
+          <li><a href="{% url 'about' %}">Tentang Kami</a></li>
+          <li><a href="{% url 'teams' %}">Tim Kami</a></li>
+          {% if user.is_authenticated %}
+          <li><a href="{% url 'dashboard' %}">Dashboard</a></li>
+          {% else %}
+          <li><a href="{% url 'login' %}">Masuk</a></li>
+          {% endif %}
+        </ul>
+      </div>
+      <div class="footer-links">
+        <h4>Kontak</h4>
+        <ul>
+          <li><a href="#">📍 Samarinda, Kalimantan Timur</a></li>
+          <li><a href="mailto:">✉ xxxx@xxxxx.com</a></li>
+          <li><a href="tel:+62">📞 +62 xxx xxxx xxxx</a></li>
+        </ul>
+      </div>
+    </div>
+    <div class="footer-bottom">
+      &copy; {% now "Y" %} PT Atika Jaya Samudera. Seluruh hak dilindungi.
+    </div>
+  </footer>
+
+  <script src="{% static 'js/main.js' %}"></script>
+  {% block extra_js %}{% endblock %}
+</body>
+</html>

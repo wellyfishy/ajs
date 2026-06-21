@@ -1,0 +1,82 @@
+{% extends 'panel/base_panel.html' %}
+{% block title %}Riwayat Aktivitas{% endblock %}
+{% block breadcrumb %} / <span>Riwayat</span>{% endblock %}
+
+{% block content %}
+<div class="page-header">
+  <div><h1>📜 Riwayat Aktivitas</h1><div class="page-header-sub">Log semua aktivitas pengguna dalam sistem</div></div>
+</div>
+
+<div class="filter-row">
+  <select class="form-control" id="filter-aksi" style="width:auto;">
+    <option value="">Semua Aksi</option>
+    <option value="login">Login</option>
+    <option value="logout">Logout</option>
+    <option value="create">Create</option>
+    <option value="edit">Edit</option>
+    <option value="delete">Delete</option>
+    <option value="absen">Absen</option>
+  </select>
+  <div class="search-input-wrap">
+    <span class="search-icon">🔍</span>
+    <input type="text" class="form-control" id="search-input" placeholder="Cari pengguna atau detail..." style="width:260px;">
+  </div>
+</div>
+
+<div class="card">
+  <div class="table-wrapper">
+    <table id="history-table">
+      <thead>
+        <tr>
+          <th>Waktu</th>
+          <th>Pengguna</th>
+          <th>Aksi</th>
+          <th>Detail</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for h in history %}
+        <tr data-aksi="{{ h.aksi|lower }}" data-search="{{ h.user.username|lower }} {{ h.detail|lower }}">
+          <td style="font-size:.8rem;white-space:nowrap;">
+            <div style="color:var(--white);">{{ h.created_at|date:"d M Y" }}</div>
+            <div style="color:var(--surf);">{{ h.created_at|time:"H:i:s" }}</div>
+          </td>
+          <td>
+            <div style="display:flex;align-items:center;gap:.5rem;">
+              <div style="width:30px;height:30px;border-radius:50%;background:linear-gradient(135deg,var(--ocean),var(--sea));display:flex;align-items:center;justify-content:center;font-size:.8rem;flex-shrink:0;">
+                {{ h.user.username|first|upper|default:"?" }}
+              </div>
+              <div>
+                <div style="font-size:.85rem;color:var(--white);">{{ h.user.username|default:"(deleted)" }}</div>
+              </div>
+            </div>
+          </td>
+          <td><span class="history-aksi aksi-{{ h.aksi|lower }}">{{ h.aksi }}</span></td>
+          <td style="font-size:.85rem;color:var(--mist);max-width:400px;">{{ h.detail }}</td>
+        </tr>
+        {% empty %}
+        <tr><td colspan="4"><div class="empty-state"><div class="empty-state-icon">📜</div><p>Belum ada riwayat aktivitas.</p></div></td></tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+  const fa = document.getElementById('filter-aksi');
+  const si = document.getElementById('search-input');
+  const rows = document.querySelectorAll('#history-table tbody tr[data-aksi]');
+  function filter() {
+    const q = si.value.toLowerCase(), ak = fa.value.toLowerCase();
+    rows.forEach(r => {
+      const mq = !q || r.dataset.search.includes(q);
+      const ma = !ak || r.dataset.aksi === ak;
+      r.style.display = mq && ma ? '' : 'none';
+    });
+  }
+  fa.addEventListener('change', filter);
+  si.addEventListener('input', filter);
+</script>
+{% endblock %}

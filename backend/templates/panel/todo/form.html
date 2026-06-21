@@ -1,0 +1,55 @@
+{% extends 'panel/base_panel.html' %}
+{% block title %}{% if todo %}Edit{% else %}Tambah{% endif %} Todo{% endblock %}
+{% block breadcrumb %} / <a href="{% url 'todo_list' %}">Todo</a> / <span>{% if todo %}Edit{% else %}Tambah{% endif %}</span>{% endblock %}
+
+{% block content %}
+<div class="page-header">
+  <div><h1>{% if todo %}✏️ Edit Todo {% if todo.shipment %}Shipment: {{ todo.shipment.nomor_referensi }}{% endif %}{% else %}✅ Tambah Todo Baru{% endif %}</h1></div>
+  <a href="{% url 'todo_list' %}" class="btn btn-outline">← Kembali</a>
+</div>
+<div class="card animate-fade-up" style="max-width:660px;">
+  <form method="post">
+    {% csrf_token %}
+    <div class="form-group">
+      <label class="form-label">Judul Todo *</label>
+      <input type="text" name="judul" class="form-control" value="{{ todo.judul|default:'' }}" required placeholder="Judul tugas...">
+    </div>
+    <div class="form-group">
+      <label class="form-label">Deskripsi</label>
+      <textarea name="deskripsi" class="form-control" placeholder="Detail tugas...">{{ todo.deskripsi|default:'' }}</textarea>
+    </div>
+    <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:1rem;">
+      <div class="form-group">
+        <label class="form-label">Status</label>
+        <select name="status" class="form-control">
+          <option value="pending"     {% if todo.status == 'pending' %}selected{% endif %}>Pending</option>
+          <option value="in_progress" {% if todo.status == 'in_progress' %}selected{% endif %}>In Progress</option>
+          <option value="done"        {% if todo.status == 'done' %}selected{% endif %}>Done</option>
+        </select>
+      </div>
+      <div class="form-group">
+        <label class="form-label">Deadline</label>
+        <input type="date" name="deadline" class="form-control" value="{{ todo.deadline|date:'Y-m-d'|default:'' }}">
+      </div>
+      <div class="form-group">
+        <label class="form-label">Tugaskan Ke</label>
+        {% if todo.shipment %}
+          <input type="text" name="ditugaskan_ke" class="form-control" value="{% if todo.shipment.pic %}{{ todo.shipment.pic }}{% else %}-{% endif %}" disabled>
+        {% else %}
+          <select name="ditugaskan_ke" class="form-control">
+            <option value="">– Pilih User –</option>
+            {% for u in users %}
+            <option value="{{ u.pk }}" {% if todo.ditugaskan_ke.pk == u.pk %}selected{% endif %}>{{ u.get_full_name|default:u.username }}</option>
+            {% endfor %}
+          </select>
+        {% endif %}
+      </div>
+    </div>
+    <div style="display:flex;gap:.75rem;">
+      <button type="submit" class="btn btn-primary">{% if todo %}💾 Simpan{% else %}✅ Tambah Todo{% endif %}</button>
+      <a href="{% url 'todo_list' %}" class="btn btn-outline">Batal</a>
+    </div>
+  </form>
+</div>
+<style>@media(max-width:600px){div[style*="grid-template-columns:1fr 1fr 1fr"]{grid-template-columns:1fr!important;}}</style>
+{% endblock %}

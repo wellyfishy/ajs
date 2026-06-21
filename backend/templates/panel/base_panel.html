@@ -1,0 +1,149 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="id">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>{% block title %}Panel{% endblock %} – PT Atika Jaya Samudera</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@400;600;700&family=DM+Sans:wght@300;400;500;600&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="{% static 'css/main.css' %}">
+  <link rel="stylesheet" href="{% static 'css/panel.css' %}">
+  <link href="{% static 'img/icons/favicon.png' %}" rel="icon">
+  <link href="{% static 'img/icons/favicon.png' %}" rel="apple-touch-icon">
+  {% block extra_css %}{% endblock %}
+</head>
+<body class="ocean-bg">
+  <canvas id="particles-canvas"></canvas>
+  <div class="sidebar-overlay content-layer"></div>
+
+  <div class="panel-layout content-layer">
+
+    <!-- SIDEBAR -->
+    <aside class="sidebar">
+      <div class="sidebar-brand">
+        <div class="sidebar-brand-icon">⚓</div>
+        <div>
+          <div class="sidebar-brand-text">Atika Jaya Samudera</div>
+          <div class="sidebar-brand-sub">PT · Admin Panel</div>
+        </div>
+      </div>
+
+      <div class="sidebar-user">
+        <div class="sidebar-user-avatar">
+          {% if request.user.profile.foto %}
+            <img src="{{ request.user.profile.foto.url }}" alt="{{ request.user.username }}">
+          {% else %}
+            {{ request.user.username|first|upper }}
+          {% endif %}
+        </div>
+        <div>
+          <div class="sidebar-user-name">{{ request.user.get_full_name|default:request.user.username }}</div>
+          <div class="sidebar-user-role">
+            {% if request.user.profile.role == 'admin' %}👑 Admin
+            {% elif request.user.profile.role == 'karyawan' %}👤 Karyawan
+            {% else %}🔭 Guest{% endif %}
+          </div>
+        </div>
+      </div>
+
+      <nav class="sidebar-nav">
+        <div class="sidebar-section">Utama</div>
+        <a href="{% url 'dashboard' %}" class="sidebar-link {% if request.resolver_match.url_name == 'dashboard' %}active{% endif %}">
+          <span class="sidebar-link-icon">🏠</span> Dashboard
+        </a>
+
+        <div class="sidebar-section" style="margin-top:.5rem;">Operasional</div>
+        <a href="{% url 'shipment_list' %}" class="sidebar-link {% if 'shipment' in request.resolver_match.url_name %}active{% endif %}">
+          <span class="sidebar-link-icon">🚢</span> Shipment
+        </a>
+        <a href="{% url 'client_list' %}" class="sidebar-link {% if 'client' in request.resolver_match.url_name %}active{% endif %}">
+          <span class="sidebar-link-icon">🏢</span> Client
+        </a>
+        <a href="{% url 'todo_list' %}" class="sidebar-link {% if 'todo' in request.resolver_match.url_name %}active{% endif %}">
+          <span class="sidebar-link-icon">✅</span> Todo List
+        </a>
+        <a href="{% url 'absensi_list' %}" class="sidebar-link {% if 'absensi' in request.resolver_match.url_name %}active{% endif %}">
+          <span class="sidebar-link-icon">📋</span> Absensi
+        </a>
+        <a href="{% url 'dokumen_list' %}" class="sidebar-link {% if 'dokumen' in request.resolver_match.url_name %}active{% endif %}">
+          <span class="sidebar-link-icon">📄</span> Dokumen
+        </a>
+
+        {% if request.user.profile.role == 'admin' %}
+        <div class="sidebar-section" style="margin-top:.5rem;">Manajemen</div>
+        <a href="{% url 'layanan_list' %}" class="sidebar-link {% if 'layanan' in request.resolver_match.url_name %}active{% endif %}">
+          <span class="sidebar-link-icon">⚙️</span> Layanan
+        </a>
+        <a href="{% url 'team_list' %}" class="sidebar-link {% if 'team' in request.resolver_match.url_name %}active{% endif %}">
+          <span class="sidebar-link-icon">👥</span> Tim
+        </a>
+        <a href="{% url 'user_list' %}" class="sidebar-link {% if 'user' in request.resolver_match.url_name %}active{% endif %}">
+          <span class="sidebar-link-icon">🔑</span> Pengguna
+        </a>
+        <a href="{% url 'history_list' %}" class="sidebar-link {% if 'history' in request.resolver_match.url_name %}active{% endif %}">
+          <span class="sidebar-link-icon">📜</span> Riwayat
+        </a>
+        {% endif %}
+      </nav>
+
+      <div class="sidebar-footer">
+        <a href="{% url 'index' %}">🌐 Lihat Situs</a>
+        <a href="{% url 'logout' %}" style="margin-top:.5rem;color:rgba(224,82,82,0.6);">🚪 Keluar</a>
+      </div>
+    </aside>
+
+    <!-- MAIN -->
+    <div class="panel-main">
+      <header class="topbar">
+        <div class="topbar-left">
+          <button class="topbar-toggle" aria-label="Toggle sidebar">☰</button>
+          <div class="topbar-breadcrumb">
+            <a href="{% url 'dashboard' %}">Panel</a>
+            {% block breadcrumb %}{% endblock %}
+          </div>
+        </div>
+        <div class="topbar-right">
+          {% if absen_today %}
+            {% if absen_today.jam_keluar %}
+              <div class="topbar-absen-status">
+                <span class="absen-dot out"></span>
+                Selesai {{ absen_today.jam_keluar|time:"H:i" }}
+              </div>
+            {% else %}
+              <div class="topbar-absen-status">
+                <span class="absen-dot"></span>
+                Hadir {{ absen_today.jam_masuk|time:"H:i" }}
+              </div>
+              <a href="{% url 'absen_keluar' %}" class="btn btn-sm btn-outline">Absen Keluar</a>
+            {% endif %}
+          {% else %}
+            <a href="{% url 'absen_masuk' %}" class="btn btn-sm btn-primary">Absen Masuk</a>
+          {% endif %}
+          <a href="{% url 'logout' %}" class="btn btn-sm btn-danger" style="padding:.3rem .7rem;">🚪</a>
+        </div>
+      </header>
+
+      <!-- MESSAGES -->
+      {% if messages %}
+      <div style="padding:1rem 1.75rem 0;">
+        {% for msg in messages %}
+        <div class="alert alert-{% if msg.tags == 'error' %}error{% elif msg.tags == 'success' %}success{% elif msg.tags == 'warning' %}warning{% else %}info{% endif %}">
+          {% if msg.tags == 'success' %}✓{% elif msg.tags == 'error' %}✕{% else %}ℹ{% endif %}
+          {{ msg }}
+        </div>
+        {% endfor %}
+      </div>
+      {% endif %}
+
+      <div class="panel-content">
+        {% block content %}{% endblock %}
+      </div>
+    </div>
+
+  </div>
+
+  <script src="{% static 'js/main.js' %}"></script>
+  {% block extra_js %}{% endblock %}
+</body>
+</html>
