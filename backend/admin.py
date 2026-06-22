@@ -2,7 +2,7 @@ from django.contrib import admin
 
 # Register your models here.
 from django.contrib import admin
-from .models import Profile, TeamMember, TodoList, Client, Layanan, Shipment, Absensi, History
+from .models import Profile, TeamMember, TodoList, Client, Layanan, Shipment, Absensi, History, Dokumen, Kategori
 
 @admin.register(Profile)
 class ProfileAdmin(admin.ModelAdmin):
@@ -50,3 +50,6 @@ class HistoryAdmin(admin.ModelAdmin):
     list_filter = ['aksi']
     search_fields = ['user__username', 'detail']
     readonly_fields = ['user', 'aksi', 'detail', 'created_at']
+
+admin.site.register(Dokumen)
+admin.site.register(Kategori)

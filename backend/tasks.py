@@ -14,35 +14,23 @@ logger = logging.getLogger(__name__)
 # ──────────────────────────────────────────────────────────────
 #  Helpers — Text Extraction
 # ──────────────────────────────────────────────────────────────
-
-def _extract_digital_pdf(file_bytes: bytes) -> str:
-    """
-    PyMuPDF: extracts embedded text from digital PDFs.
-    Instant, free, no API call needed.
-    """
-    try:
-        import fitz  # PyMuPDF
-        doc  = fitz.open(stream=file_bytes, filetype='pdf')
-        text = '\n'.join(page.get_text() for page in doc)
-        doc.close()
-        return text
-    except Exception as e:
-        logger.error(f"PyMuPDF extraction error: {e}")
-        return ''
-
-
 def _extract_via_textract_s3(s3_key: str) -> str:
     """
-    Amazon Textract: for scanned PDFs already uploaded to S3.
-    Handles multi-page docs, best accuracy for scanned content.
+    Textract extraction for S3 documents.
+    - Single page: uses sync detect_document_text (fast)
+    - Multi page:  uses async start_document_text_detection (handles all pages)
     """
+    import time
+
+    client = boto3.client(
+        'textract',
+        aws_access_key_id=settings.AWS_ACCESS_KEY_ID,
+        aws_secret_access_key=settings.AWS_SECRET_ACCESS_KEY,
+        region_name=settings.AWS_TEXTRACT_REGION,
+    )
+
+    # ── Try sync first (works for single-page, faster) ────────
     try:
-        client = boto3.client(
-            'textract',
-            aws_access_key_id=settings.AWS_ACCESS_KEY_ID,
-            aws_secret_access_key=settings.AWS_SECRET_ACCESS_KEY,
-            region_name=settings.AWS_TEXTRACT_REGION,
-        )
         response = client.detect_document_text(
             Document={
                 'S3Object': {
@@ -56,17 +44,95 @@ def _extract_via_textract_s3(s3_key: str) -> str:
             for block in response['Blocks']
             if block['BlockType'] == 'LINE'
         ]
-        return '\n'.join(lines)
+        text = '\n'.join(lines)
+        if text.strip():
+            return text
+        # Empty result — fall through to async (might be multi-page)
+
+    except client.exceptions.UnsupportedDocumentException:
+        logger.warning(f"Textract sync: unsupported format for {s3_key}")
+        return ''
+    except client.exceptions.InvalidParameterException:
+        # Multi-page PDF — sync doesn't support it, fall through to async
+        logger.info(f"Textract sync failed (likely multi-page), switching to async: {s3_key}")
     except Exception as e:
-        logger.error(f"Textract (S3) error: {e}")
+        logger.warning(f"Textract sync error for {s3_key}: {e}, trying async...")
+
+    # ── Async for multi-page PDFs ──────────────────────────────
+    try:
+        # Start async job
+        start_response = client.start_document_text_detection(
+            DocumentLocation={
+                'S3Object': {
+                    'Bucket': settings.AWS_STORAGE_BUCKET_NAME,
+                    'Name':   s3_key,
+                }
+            }
+        )
+        job_id = start_response['JobId']
+        logger.info(f"Textract async job started: {job_id} for {s3_key}")
+
+        # Poll until complete (max 5 minutes)
+        max_wait  = 300
+        waited    = 0
+        poll_interval = 3
+
+        while waited < max_wait:
+            result = client.get_document_text_detection(JobId=job_id)
+            status = result['JobStatus']
+
+            if status == 'SUCCEEDED':
+                break
+            elif status == 'FAILED':
+                logger.error(f"Textract async job failed for {s3_key}: "
+                             f"{result.get('StatusMessage', 'unknown')}")
+                return ''
+
+            time.sleep(poll_interval)
+            waited += poll_interval
+
+        if waited >= max_wait:
+            logger.error(f"Textract async job timed out for {s3_key}")
+            return ''
+
+        # Collect all pages (paginated results)
+        all_lines = []
+        next_token = None
+
+        while True:
+            if next_token:
+                page_result = client.get_document_text_detection(
+                    JobId=job_id,
+                    NextToken=next_token
+                )
+            else:
+                page_result = result  # reuse last result from polling
+
+            all_lines.extend([
+                block['Text']
+                for block in page_result.get('Blocks', [])
+                if block['BlockType'] == 'LINE'
+            ])
+
+            next_token = page_result.get('NextToken')
+            if not next_token:
+                break
+
+        text = '\n'.join(all_lines)
+        logger.info(f"Textract async extracted {len(all_lines)} lines "
+                    f"from {s3_key}")
+        return text
+
+    except client.exceptions.UnsupportedDocumentException:
+        logger.warning(f"Textract async: unsupported format for {s3_key}")
+        return ''
+    except Exception as e:
+        logger.error(f"Textract async error for {s3_key}: {e}")
         return ''
 
 
 def _extract_via_textract_bytes(file_bytes: bytes) -> str:
-    """
-    Amazon Textract: for images sent directly as bytes.
-    Used for jpg/png uploads (max 5MB per Textract limit).
-    """
+    """Fallback for images under 5MB — send bytes directly instead of S3 reference."""
     try:
         client = boto3.client(
             'textract',
@@ -83,44 +149,28 @@ def _extract_via_textract_bytes(file_bytes: bytes) -> str:
             if block['BlockType'] == 'LINE'
         ]
         return '\n'.join(lines)
+
     except Exception as e:
-        logger.error(f"Textract (bytes) error: {e}")
+        logger.error(f"Textract bytes error: {e}")
         return ''
 
 
 def _smart_extract(file_bytes: bytes, mime_type: str, s3_key: str) -> tuple[str, str]:
     """
-    Smart extraction pipeline:
-    1. Digital PDF → PyMuPDF (instant, free)
-    2. Scanned PDF → Textract via S3 (accurate, paid)
-    3. Image → Textract via bytes (accurate, paid)
-
-    Returns (extracted_text, engine_used)
+    All documents go through Textract.
+    Images under 5MB are sent as bytes; everything else via S3 reference.
     """
-    if 'pdf' in mime_type:
-        # Try digital extraction first
-        text = _extract_digital_pdf(file_bytes)
-        if len(text.strip()) > 50:
-            return text, 'pymupdf'
-
-        # Not enough text found — it's a scanned PDF
-        logger.info(f"Scanned PDF detected for {s3_key}, using Textract")
+    if mime_type.startswith('image/') and len(file_bytes) <= 5 * 1024 * 1024:
+        # Small images — send bytes directly (no need for S3 round-trip)
+        text = _extract_via_textract_bytes(file_bytes)
+    else:
+        # PDFs (digital, scanned, mixed) and large images — via S3
         text = _extract_via_textract_s3(s3_key)
-        return text, 'textract'
 
-    elif mime_type.startswith('image/'):
-        # Images always go to Textract
-        # If file is over 5MB, use S3 reference instead of bytes
-        if len(file_bytes) > 5 * 1024 * 1024:
-            text = _extract_via_textract_s3(s3_key)
-        else:
-            text = _extract_via_textract_bytes(file_bytes)
-        return text, 'textract'
+    if not text.strip():
+        logger.warning(f"Textract returned empty text for {s3_key}")
 
-    # Unknown type — try PyMuPDF as best effort
-    text = _extract_digital_pdf(file_bytes)
-    return text, 'pymupdf'
-
+    return text, 'textract'
 
 # ──────────────────────────────────────────────────────────────
 #  Helper — TF-IDF Classification
@@ -153,7 +203,7 @@ def _classify(text: str, kategori_list: list) -> tuple:
         scores   = {kategori_list[i]['id']: float(sims[i]) for i in range(len(kategori_list))}
         best_idx = int(np.argmax(sims))
 
-        if sims[best_idx] >= 0.05:
+        if sims[best_idx] >= 0.01:
             return kategori_list[best_idx]['id'], scores
         return None, scores
 
@@ -287,11 +337,14 @@ def task_ocr_and_classify(self, dokumen_id: int):
 
         best_kat_id, scores = _classify(text, kategori_list)
 
+        # NEW — safe against duplicates
         if best_kat_id is None:
-            tidak_ada, _ = Kategori.objects.get_or_create(
-                judul='Tidak Ada',
-                defaults={'deskripsi': 'Dokumen tidak dapat diklasifikasikan'}
-            )
+            tidak_ada = Kategori.objects.filter(judul='Tidak Ada').first()
+            if not tidak_ada:
+                tidak_ada = Kategori.objects.create(
+                    judul='Tidak Ada',
+                    deskripsi='Dokumen tidak dapat diklasifikasikan'
+                )
             best_kat_id = tidak_ada.pk
 
         dok.kategori_id  = best_kat_id
