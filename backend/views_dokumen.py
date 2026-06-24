@@ -34,8 +34,28 @@ def dokumen_page(request):
         'shipment_list': Shipment.objects.all().select_related('client'),
         'is_admin':      is_admin(request.user),
     }
-    return render(request, 'panel/dokumen/list2.html', context)
+    return render(request, 'panel/dokumen/list.html', context)
 
+# ──────────────────────────────────────────────────────────────
+#  API: Summary
+# ──────────────────────────────────────────────────────────────
+@login_required
+def api_dokumen_summary(request):
+    from django.db.models import Count
+
+    total          = Dokumen.objects.count()
+    terklasifikasi = Dokumen.objects.exclude(
+        kategori__judul='Tidak Ada'
+    ).exclude(
+        kategori__isnull=True
+    ).count()
+    belum          = total - terklasifikasi
+
+    return JsonResponse({
+        'total':          total,
+        'terklasifikasi': terklasifikasi,
+        'belum':          belum,
+    })
 
 # ──────────────────────────────────────────────────────────────
 #  API: Bulk upload
