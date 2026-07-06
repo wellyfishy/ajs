@@ -44,7 +44,6 @@ def teams(request):
     team = TeamMember.objects.filter(aktif=True).order_by('urutan')
     return render(request, 'landing/teams.html', {'team': team})
 
-
 # ── AUTH ──
 def login_view(request):
     if request.user.is_authenticated:
@@ -59,7 +58,6 @@ def login_view(request):
             return redirect('dashboard')
         messages.error(request, 'Username atau password salah.')
     return render(request, 'auth/login.html')
-
 
 @login_required
 def logout_view(request):
