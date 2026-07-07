@@ -120,7 +120,7 @@
       width:      '320px',
       maxHeight:  '440px',
       overflowY:  'auto',
-      background: '#ffffff',
+      background: '#131225',
       borderRadius: '10px',
       boxShadow:  '0 4px 24px rgba(0,0,0,0.15)',
       fontSize:   '13px',
@@ -168,7 +168,7 @@
     });
 
     panelEl.innerHTML = `
-      <div style="padding:10px 14px;background:#f8f9fa;
+      <div style="padding:10px 14px;background:#131225;
                   border-radius:10px 10px 0 0;
                   display:flex;justify-content:space-between;align-items:center;
                   position:sticky;top:0;">

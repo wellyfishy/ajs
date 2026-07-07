@@ -16,7 +16,11 @@ class Profile(models.Model):
     ]
     user = models.OneToOneField(User, on_delete=models.CASCADE)
     role = models.CharField(max_length=20, choices=ROLE_CHOICES, default='guest')
-    foto = models.ImageField(upload_to='foto_profil/', null=True, blank=True)
+    foto = models.ImageField(
+        upload_to='foto_profil/',
+        storage=DokumenS3Storage(),   # <-- tambahkan ini
+        null=True, blank=True
+    )
     jabatan = models.CharField(max_length=100, null=True, blank=True)
     no_hp = models.CharField(max_length=20, null=True, blank=True)
     bio = models.TextField(null=True, blank=True)
@@ -28,7 +32,11 @@ class Profile(models.Model):
 class TeamMember(models.Model):
     nama = models.CharField(max_length=100)
     jabatan = models.CharField(max_length=100)
-    foto = models.ImageField(upload_to='foto_team/', null=True, blank=True)
+    foto = models.ImageField(
+        upload_to='foto_team/',
+        storage=DokumenS3Storage(),   # <-- tambahkan ini
+        null=True, blank=True
+    )
     bio = models.TextField(null=True, blank=True)
     urutan = models.IntegerField(default=0)
     aktif = models.BooleanField(default=True)
@@ -158,7 +166,7 @@ def dokumen_upload_path(instance, filename):
     return f"{timezone.now().strftime('%Y/%m')}/{unique_name}"
 
 
-# ── Replace your existing Dokumen ────────────────────────────
+# ── Replace your existing Dokumen ───────────────────────────-
 class Dokumen(models.Model):
     UPLOAD_STATUS = [
         ('pending',   'Menunggu Upload'),
