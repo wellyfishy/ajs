@@ -10,12 +10,14 @@ click-plugins==1.1.1.2
 click-repl==0.3.0
 colorama==0.4.6
 cron-descriptor==1.4.5
+dj-database-url==3.1.2
 Django==6.0.4
 django-celery-beat==2.9.0
 django-storages==1.14.6
 django-timezone-field==7.2.2
 django_celery_results==2.6.0
 dotenv==0.9.9
+gunicorn==26.0.0
 jmespath==1.1.0
 joblib==1.5.3
 kombu==5.3.4
@@ -24,6 +26,7 @@ numpy==2.4.6
 packaging==26.2
 pillow==12.2.0
 prompt_toolkit==3.0.52
+psycopg2-binary==2.9.12
 python-crontab==3.3.0
 python-dateutil==2.9.0.post0
 python-dotenv==1.2.2
@@ -39,3 +42,4 @@ tzlocal==5.4.3
 urllib3==2.7.0
 vine==5.1.0
 wcwidth==0.8.1
+whitenoise==6.12.0

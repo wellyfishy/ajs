@@ -215,15 +215,16 @@ def _fuzzy_search(qs, query: str):
     db_engine = dj_settings.DATABASES['default']['ENGINE']
 
     if 'postgresql' in db_engine:
-        from django.contrib.postgres.search import TrigramSimilarity
+        from django.contrib.postgres.search import TrigramWordSimilarity
+        from django.db.models.functions import Lower
         qs = qs.annotate(
-            search_rank=(
-                TrigramSimilarity('nama_file',  query)
-                + TrigramSimilarity('judul',      query)
-                + TrigramSimilarity('keterangan', query)
-                + TrigramSimilarity('ocr_teks',   query)
-            )
-        ).filter(search_rank__gt=0.05).order_by('-search_rank')
+        search_rank=(
+            TrigramWordSimilarity(query.lower(), Lower('nama_file')) * 2
+            + TrigramWordSimilarity(query.lower(), Lower('judul')) * 2
+            + TrigramWordSimilarity(query.lower(), Lower('keterangan'))
+            + TrigramWordSimilarity(query.lower(), Lower('ocr_teks'))
+        )
+        ).filter(search_rank__gt=0.3).order_by('-search_rank')
     else:
         # SQLite fallback
         qs = qs.filter(
