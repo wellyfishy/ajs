@@ -47,14 +47,13 @@ def _extract_via_textract_s3(s3_key: str) -> str:
         text = '\n'.join(lines)
         if text.strip():
             return text
-        # Empty result — fall through to async (might be multi-page)
 
     except client.exceptions.UnsupportedDocumentException:
-        logger.warning(f"Textract sync: unsupported format for {s3_key}")
-        return ''
+        # Multi-page PDFs trigger this specific exception, not InvalidParameterException
+        logger.info(f"Textract sync rejected document (likely multi-page PDF), switching to async: {s3_key}")
+        # no return here — falls through to the async block below
     except client.exceptions.InvalidParameterException:
-        # Multi-page PDF — sync doesn't support it, fall through to async
-        logger.info(f"Textract sync failed (likely multi-page), switching to async: {s3_key}")
+        logger.info(f"Textract sync failed, switching to async: {s3_key}")
     except Exception as e:
         logger.warning(f"Textract sync error for {s3_key}: {e}, trying async...")
 
