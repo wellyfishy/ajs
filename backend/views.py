@@ -4,11 +4,70 @@ from django.contrib.auth.decorators import login_required
 from django.contrib.auth.models import User
 from django.contrib import messages
 from django.utils import timezone
-from .models import Profile, TeamMember, TodoList, Client, Layanan, Shipment, Absensi, History
+from .models import Profile, TeamMember, TodoList, Client, Layanan, Shipment, Absensi, History, Dokumen
 from functools import wraps
 from django.http import JsonResponse
+import mimetypes
+import os
+import tempfile
+import uuid
 
-"https://039575450262.signin.aws.amazon.com/console"
+
+from backend.models import Dokumen, DokumenTaskLog
+from backend.tasks import task_upload_dokumen
+
+def _handle_dokumen_upload(request, shipment):
+    """
+    Handles multiple file uploads for a shipment.
+    Creates Dokumen records and fires Celery upload+OCR tasks.
+    Returns list of created Dokumen PKs.
+    """
+    files = request.FILES.getlist('dokumen')
+    if not files:
+        return []
+
+    created = []
+
+    for uploaded_file in files:
+        mime_type = (
+            uploaded_file.content_type
+            or mimetypes.guess_type(uploaded_file.name)[0]
+            or 'application/octet-stream'
+        )
+
+        safe_name = uploaded_file.name.replace(' ', '_')
+        ext       = safe_name.rsplit('.', 1)[-1].lower() if '.' in safe_name else 'bin'
+        s3_key    = f"dokumen/{timezone.now().strftime('%Y/%m')}/{uuid.uuid4().hex}.{ext}"
+
+        dok = Dokumen.objects.create(
+            shipment      = shipment,
+            client        = shipment.client,
+            uploaded_by   = request.user,
+            nama_file     = uploaded_file.name,
+            ukuran        = uploaded_file.size,
+            mime_type     = mime_type,
+            upload_status = 'pending',
+            ocr_status    = 'pending',
+        )
+        dok.file.name = s3_key
+        dok.save(update_fields=['file'])
+
+        # Write to temp file for Celery
+        tmp_dir  = tempfile.mkdtemp()
+        tmp_path = os.path.join(tmp_dir, safe_name)
+        with open(tmp_path, 'wb') as f:
+            for chunk in uploaded_file.chunks():
+                f.write(chunk)
+
+        upload_task = task_upload_dokumen.delay(dok.pk, tmp_path)
+        DokumenTaskLog.objects.create(
+            dokumen   = dok,
+            task_id   = upload_task.id,
+            task_type = 'upload',
+        )
+        created.append(dok.pk)
+
+    return created
 
 def role_required(*roles):
     def decorator(view_func):
@@ -328,31 +387,44 @@ def shipment_list(request):
 @login_required
 @role_required('admin', 'karyawan')
 def shipment_status(request, pk):
-    """AJAX endpoint — update shipment status without full page reload."""
     if request.method != 'POST':
         return JsonResponse({'ok': False, 'error': 'Method not allowed'}, status=405)
- 
+
     shipment = get_object_or_404(Shipment, pk=pk)
     new_status = request.POST.get('status', '').strip()
- 
+
     valid_statuses = dict(Shipment.STATUS_CHOICES).keys()
     if new_status not in valid_statuses:
         return JsonResponse({'ok': False, 'error': 'Status tidak valid'}, status=400)
- 
+
     old_status = shipment.get_status_display()
     shipment.status = new_status
-    shipment.save(update_fields=['status', 'updated_at']) 
- 
+    shipment.save(update_fields=['status', 'updated_at'])
+
+    # ── Sync TodoList status ──────────────────────────────────
+    STATUS_MAP = {
+        'pending': 'pending',
+        'proses':  'in_progress',
+        'selesai': 'done',
+        'batal':   'cancel',
+    }
+    todo_status = STATUS_MAP.get(new_status)
+    if todo_status:
+        updated = TodoList.objects.filter(shipment=shipment).update(
+            status     = todo_status,
+            updated_at = timezone.now(),
+        )
+
     log_history(
         request.user,
         'EDIT',
         f'Update status {shipment.nomor_referensi}: {old_status} → {shipment.get_status_display()}'
     )
- 
+
     return JsonResponse({
-        'ok': True,
-        'pk': shipment.pk,
-        'status': shipment.status,
+        'ok':             True,
+        'pk':             shipment.pk,
+        'status':         shipment.status,
         'status_display': shipment.get_status_display(),
     })
 
@@ -361,26 +433,32 @@ def shipment_status(request, pk):
 def shipment_create(request):
     if request.method == 'POST':
         shipment = Shipment.objects.create(
-            nomor_referensi=request.POST.get('nomor_referensi'),
-            client=Client.objects.filter(pk=request.POST.get('client')).first(),
-            layanan=Layanan.objects.filter(pk=request.POST.get('layanan')).first(),
-            deskripsi=request.POST.get('deskripsi'),
-            status=request.POST.get('status', 'pending'),
-            pic=User.objects.filter(pk=request.POST.get('pic')).first(),
-            tanggal_request=request.POST.get('tanggal_request') or timezone.now().date(),
-            tanggal_selesai=request.POST.get('tanggal_selesai') or None,
-            tanggal_deadline=request.POST.get('tanggal_deadline') or None,
-            dokumen=request.FILES.get('dokumen'),
-            catatan=request.POST.get('catatan'),
+            nomor_referensi  = request.POST.get('nomor_referensi'),
+            client           = Client.objects.filter(pk=request.POST.get('client')).first(),
+            layanan          = Layanan.objects.filter(pk=request.POST.get('layanan')).first(),
+            deskripsi        = request.POST.get('deskripsi'),
+            status           = request.POST.get('status', 'pending'),
+            pic              = User.objects.filter(pk=request.POST.get('pic')).first(),
+            tanggal_request  = request.POST.get('tanggal_request') or timezone.now().date(),
+            tanggal_selesai  = request.POST.get('tanggal_selesai') or None,
+            tanggal_deadline = request.POST.get('tanggal_deadline') or None,
+            catatan          = request.POST.get('catatan'),
         )
-        todo = TodoList.objects.create(
-            judul=f'Shipment: {request.POST.get('nomor_referensi')}',
-            deskripsi=f'Layanan: {Layanan.objects.filter(pk=request.POST.get('layanan')).first()}\nTgl Request: {request.POST.get('tanggal_request') or timezone.now().date()}\n\nDeskripsi: {request.POST.get('deskripsi') or '-'}',
-            status=request.POST.get('status', 'pending'),
-            dibuat_oleh=request.user,
-            deadline=request.POST.get('tanggal_deadline') or None,
-            ditugaskan_ke=None,
-            shipment=shipment,
+        # ── Handle multiple dokumen uploads ──────────────────
+        _handle_dokumen_upload(request, shipment)
+
+        TodoList.objects.create(
+            judul        = f'Shipment: {shipment.nomor_referensi}',
+            deskripsi    = (
+                f'Layanan: {shipment.layanan}\n'
+                f'Tgl Request: {shipment.tanggal_request}\n\n'
+                f'Deskripsi: {shipment.deskripsi or "-"}'
+            ),
+            status       = shipment.status,
+            dibuat_oleh  = request.user,
+            deadline     = shipment.tanggal_deadline,
+            ditugaskan_ke = None,
+            shipment     = shipment,
         )
         log_history(request.user, 'CREATE', f'Tambah shipment: {shipment.nomor_referensi}')
         messages.success(request, 'Shipment berhasil ditambahkan.')
@@ -394,39 +472,68 @@ def shipment_create(request):
 @role_required('admin', 'karyawan')
 def shipment_edit(request, pk):
     shipment = get_object_or_404(Shipment, pk=pk)
+
     if request.method == 'POST':
-        shipment.nomor_referensi = request.POST.get('nomor_referensi')
-        shipment.client = Client.objects.filter(pk=request.POST.get('client')).first()
-        shipment.layanan = Layanan.objects.filter(pk=request.POST.get('layanan')).first()
-        shipment.deskripsi = request.POST.get('deskripsi')
-        shipment.status = request.POST.get('status', 'pending')
-        shipment.pic = User.objects.filter(pk=request.POST.get('pic')).first()
-        shipment.tanggal_request = request.POST.get('tanggal_request') or timezone.now().date()
-        shipment.tanggal_selesai = request.POST.get('tanggal_selesai') or None
-        shipment.catatan = request.POST.get('catatan')
-        if request.FILES.get('dokumen'):
-            shipment.dokumen = request.FILES.get('dokumen')
+        shipment.nomor_referensi  = request.POST.get('nomor_referensi')
+        shipment.client           = Client.objects.filter(pk=request.POST.get('client')).first()
+        shipment.layanan          = Layanan.objects.filter(pk=request.POST.get('layanan')).first()
+        shipment.deskripsi        = request.POST.get('deskripsi')
+        shipment.status           = request.POST.get('status', 'pending')
+        shipment.pic              = User.objects.filter(pk=request.POST.get('pic')).first()
+        shipment.tanggal_request  = request.POST.get('tanggal_request') or timezone.now().date()
+        shipment.tanggal_selesai  = request.POST.get('tanggal_selesai') or None
+        shipment.tanggal_deadline = request.POST.get('tanggal_deadline') or None
+        shipment.catatan          = request.POST.get('catatan')
         shipment.save()
+
+        # ── Sync TodoList status ──────────────────────────────
+        STATUS_MAP = {
+            'pending': 'pending',
+            'proses':  'in_progress',
+            'selesai': 'done',
+            'batal':   'cancel',
+        }
+        todo_status = STATUS_MAP.get(shipment.status)
+        if todo_status:
+            TodoList.objects.filter(shipment=shipment).update(
+                status     = todo_status,
+                updated_at = timezone.now(),
+            )
+
+        # ── Handle new dokumen uploads ────────────────────────
+        _handle_dokumen_upload(request, shipment)
+
         log_history(request.user, 'EDIT', f'Edit shipment: {shipment.nomor_referensi}')
         messages.success(request, 'Shipment berhasil diupdate.')
         return redirect('shipment_list')
-    clients = Client.objects.all()
-    layanan = Layanan.objects.filter(aktif=True)
-    users = User.objects.all()
+
+    clients          = Client.objects.all()
+    layanan          = Layanan.objects.filter(aktif=True)
+    users            = User.objects.all()
+    existing_dokumen = Dokumen.objects.filter(shipment=shipment).select_related('kategori')
+
     return render(request, 'panel/shipment/form.html', {
-        'shipment': shipment, 'clients': clients, 'layanan': layanan, 'users': users
+        'shipment':          shipment,
+        'clients':           clients,
+        'layanan':           layanan,
+        'users':             users,
+        'existing_dokumen':  existing_dokumen,
     })
 
-
 @login_required
-@role_required('admin')
+@role_required('admin', 'karyawan')
 def shipment_delete(request, pk):
     shipment = get_object_or_404(Shipment, pk=pk)
-    log_history(request.user, 'DELETE', f'Hapus shipment: {shipment.nomor_referensi}')
-    shipment.delete()
-    messages.success(request, 'Shipment berhasil dihapus.')
-    return redirect('shipment_list')
 
+    # TodoList akan otomatis terhapus karena CASCADE di ForeignKey
+    # tapi kita log dulu sebelum dihapus
+    nomor_ref = shipment.nomor_referensi
+
+    shipment.delete()  # CASCADE: TodoList + Dokumen records ikut terhapus dari DB
+
+    log_history(request.user, 'DELETE', f'Hapus shipment: {nomor_ref}')
+    messages.success(request, f'Shipment {nomor_ref} berhasil dihapus.')
+    return redirect('shipment_list')
 
 # ── ABSENSI ──
 @login_required

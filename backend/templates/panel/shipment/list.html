@@ -351,10 +351,24 @@ tbody tr.row-active td:first-child { box-shadow: inset 2px 0 0 var(--wave); }
       </div>
     </div>
 
-    <div id="d-dokumen-section" style="display:none;">
+    <div id="d-dokumen-section">
       <div class="drawer-divider"></div>
-      <div class="drawer-label">Dokumen</div>
-      <a id="d-dokumen-link" href="#" target="_blank" class="btn btn-outline btn-sm" style="margin-top:.25rem;">📄 Lihat Dokumen</a>
+      <div class="drawer-label">
+        Dokumen
+        <span id="d-dokumen-count"
+              style="font-size:.75rem;color:var(--muted);font-weight:400;margin-left:.4rem;"></span>
+      </div>
+      <div id="d-dokumen-list" style="margin-top:.5rem;display:flex;flex-direction:column;gap:.4rem;">
+        <!-- populated by JS -->
+      </div>
+      <div id="d-dokumen-empty"
+          style="font-size:.85rem;color:var(--muted);display:none;margin-top:.4rem;">
+        Tidak ada dokumen terlampir.
+      </div>
+      <div id="d-dokumen-loading"
+          style="font-size:.85rem;color:var(--muted);margin-top:.4rem;">
+        <span class="spinner-border spinner-border-sm me-1"></span> Memuat dokumen...
+      </div>
     </div>
 
   </div>
@@ -410,15 +424,14 @@ function populateDrawer(d) {
   document.getElementById('d-ref').textContent = d.ref;
   document.getElementById('d-client-sub').textContent =
     d.client + (d.perusahaan ? ' · ' + d.perusahaan : '');
-  document.getElementById('d-layanan').textContent  = d.layananNama || '–';
-  document.getElementById('d-pic').textContent      = d.pic || '–';
-  document.getElementById('d-tgl-req').textContent  = d.tglRequest || '–';
-  document.getElementById('d-tgl-sel').textContent  = d.tglSelesai || '–';
-  document.getElementById('d-tgl-deadline').textContent  = d.tglDeadline || '–';
-  document.getElementById('d-created').textContent  = d.created || '–';
-  document.getElementById('d-updated').textContent  = d.updated || '–';
-
-  document.getElementById('d-status-badge').innerHTML = STATUS_BADGE[d.status] || d.status;
+  document.getElementById('d-layanan').textContent      = d.layananNama || '–';
+  document.getElementById('d-pic').textContent          = d.pic || '–';
+  document.getElementById('d-tgl-req').textContent      = d.tglRequest || '–';
+  document.getElementById('d-tgl-sel').textContent      = d.tglSelesai || '–';
+  document.getElementById('d-tgl-deadline').textContent = d.tglDeadline || '–';
+  document.getElementById('d-created').textContent      = d.created || '–';
+  document.getElementById('d-updated').textContent      = d.updated || '–';
+  document.getElementById('d-status-badge').innerHTML   = STATUS_BADGE[d.status] || d.status;
 
   const setVal = (id, text) => {
     const el = document.getElementById(id);
@@ -428,22 +441,114 @@ function populateDrawer(d) {
   setVal('d-deskripsi', d.deskripsi);
   setVal('d-catatan',   d.catatan);
 
-  const dokSec  = document.getElementById('d-dokumen-section');
-  if (d.dokumen) {
-    document.getElementById('d-dokumen-link').href = d.dokumen;
-    dokSec.style.display = '';
-  } else {
-    dokSec.style.display = 'none';
+  // Edit & delete links
+  const base = window.location.pathname.split('/shipment/')[0];
+  document.getElementById('d-edit-link').href = `${base}/shipment/${d.id}/edit/`;
+  document.getElementById('d-delete-link').href = `${base}/shipment/${d.id}/hapus/`;
+  document.getElementById('d-delete-link').dataset.confirm = `Hapus shipment ${d.ref}?`;
+
+  // Load dokumen for this shipment
+  loadDokumenDrawer(d.id);
+}
+
+async function loadDokumenDrawer(shipmentId) {
+  const listEl    = document.getElementById('d-dokumen-list');
+  const emptyEl   = document.getElementById('d-dokumen-empty');
+  const loadingEl = document.getElementById('d-dokumen-loading');
+  const countEl   = document.getElementById('d-dokumen-count');
+
+  // Reset state
+  listEl.innerHTML    = '';
+  emptyEl.style.display   = 'none';
+  loadingEl.style.display = 'block';
+  countEl.textContent     = '';
+
+  try {
+    const res  = await fetch(`/api/dokumen/shipment/${shipmentId}/`);
+    const data = await res.json();
+
+    loadingEl.style.display = 'none';
+
+    if (!data.items.length) {
+      emptyEl.style.display = 'block';
+      return;
+    }
+
+    countEl.textContent = `(${data.total})`;
+
+    listEl.innerHTML = data.items.map(dok => {
+      const statusColor = {
+        uploaded:   'var(--success)',
+        uploading:  'var(--info)',
+        pending:    'var(--muted)',
+        failed:     'var(--danger)',
+      }[dok.upload_status] || 'var(--muted)';
+
+      const ocrBadge = {
+        done:       '✓ OCR',
+        processing: '🔍 OCR',
+        failed:     '✗ OCR',
+        pending:    '⏳ OCR',
+      }[dok.ocr_status] || '';
+
+      const fileIcon = dok.mime_type?.includes('pdf')
+        ? '📄' : dok.mime_type?.startsWith('image/')
+        ? '🖼️' : '📎';
+
+      const sizeStr = dok.ukuran
+        ? (dok.ukuran < 1048576
+            ? (dok.ukuran / 1024).toFixed(1) + ' KB'
+            : (dok.ukuran / 1048576).toFixed(1) + ' MB')
+        : '';
+
+      const viewBtn = dok.signed_url
+        ? `<a href="${dok.signed_url}" target="_blank" rel="noopener"
+              style="font-size:.75rem;padding:.2rem .5rem;"
+              class="btn btn-outline btn-sm">👁 Lihat</a>`
+        : dok.upload_status !== 'uploaded'
+        ? `<span style="font-size:.75rem;color:var(--muted);">⏳ Upload...</span>`
+        : `<span style="font-size:.75rem;color:var(--muted);">🔒 No Access</span>`;
+
+      return `
+        <div style="
+          display:flex;justify-content:space-between;align-items:center;
+          padding:.5rem .6rem;border-radius:6px;
+          background:var(--surface, #131225);
+          border:1px solid var(--border, #27254b);
+          gap:.5rem;
+        ">
+          <div style="overflow:hidden;flex:1;">
+            <div style="
+              font-size:.82rem;font-weight:600;
+              white-space:nowrap;overflow:hidden;text-overflow:ellipsis;
+            " title="${esc(dok.nama_file)}">
+              ${fileIcon} ${esc(dok.nama_file)}
+            </div>
+            <div style="font-size:.72rem;color:var(--muted);margin-top:2px;display:flex;gap:.4rem;flex-wrap:wrap;">
+              <span style="color:${statusColor};">● ${dok.upload_status}</span>
+              ${ocrBadge ? `<span>${ocrBadge}</span>` : ''}
+              ${dok.kategori !== '—' ? `<span>📂 ${esc(dok.kategori)}</span>` : ''}
+              ${sizeStr ? `<span>${sizeStr}</span>` : ''}
+            </div>
+          </div>
+          <div style="flex-shrink:0;">
+            ${viewBtn}
+          </div>
+        </div>`;
+    }).join('');
+
+  } catch (e) {
+    loadingEl.style.display = 'none';
+    listEl.innerHTML = `
+      <div style="font-size:.82rem;color:var(--danger);">
+        Gagal memuat dokumen.
+      </div>`;
   }
+}
 
-  // Build edit URL: /panel/shipment/<pk>/edit/
-  document.getElementById('d-edit-link').href =
-    window.location.pathname.split('/shipment/')[0] + '/shipment/' + d.id + '/edit/';
-
-  document.getElementById('d-delete-link').href =
-    window.location.pathname.split('/shipment/')[0] + '/shipment/' + d.id + '/hapus/';
-  document.getElementById('d-delete-link').dataset.confirm =
-    'Hapus shipment ' + d.ref + '?';
+function esc(s) {
+  return String(s ?? '').replace(/[&<>"']/g, c =>
+    ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 }
 
 document.getElementById('drawer-close').addEventListener('click', closeDrawer);

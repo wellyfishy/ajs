@@ -89,12 +89,82 @@
       </div>
 
       <div class="form-group">
-        <label class="form-label">Dokumen (Opsional) {% if shipment.dokumen %}(Sudah ada dokumen){% endif %}</label>
-        <input type="file" name="dokumen" class="form-control" accept=".pdf,.doc,.docx,.xls,.xlsx">
-        {% if shipment.dokumen %}
-        <div style="margin-top:.5rem;font-size:.82rem;color:var(--foam);">
-          📄 <a href="{{ shipment.dokumen.url }}" target="_blank">Lihat dokumen sekarang</a>
-        </div>
+        <label class="form-label">Dokumen (Opsional)</label>
+        <input type="file" name="dokumen" class="form-control" accept=".pdf,.doc,.docx,.xls,.xlsx" multiple>
+        {% if existing_dokumen %}
+          <div class="mb-3" style="margin-top: 10px;">
+              <label class="form-label">
+                  Dokumen Terlampir 
+                  <span class="badge bg-secondary">{{ existing_dokumen.count }}</span>
+              </label>
+              <div class="list-group">
+                  {% for dok in existing_dokumen %}
+                  <div class="list-group-item py-2">
+                      <div class="d-flex justify-content-between align-items-center">
+
+                          <div style="overflow:hidden;flex:1;">
+                              <div class="fw-semibold text-truncate" style="max-width:350px;"
+                                  title="{{ dok.nama_file }}">
+                                  {% if dok.mime_type == 'application/pdf' %}
+                                      <i class="bi bi-file-earmark-pdf text-danger"></i>
+                                  {% elif dok.mime_type|slice:":6" == 'image/' %}
+                                      <i class="bi bi-file-earmark-image text-primary"></i>
+                                  {% else %}
+                                      <i class="bi bi-file-earmark"></i>
+                                  {% endif %}
+                                  {{ dok.nama_file }}
+                              </div>
+                              <div class="d-flex gap-1 flex-wrap mt-1">
+                                  {% if dok.kategori %}
+                                      <span class="badge badge-proses">{{ dok.kategori.judul }}</span>
+                                  {% else %}
+                                      <span class="badge bg-secondary">Belum Terklasifikasi</span>
+                                  {% endif %}
+
+                                  {% if dok.ocr_status == 'done' %}
+                                      <span class="badge badge-selesai">✓ OCR</span>
+                                  {% elif dok.ocr_status == 'processing' %}
+                                      <span class="badge badge-proses">🔍 OCR...</span>
+                                  {% elif dok.ocr_status == 'failed' %}
+                                      <span class="badge badge-batal">✗ OCR Gagal</span>
+                                  {% else %}
+                                      <span class="badge badge-pending">⏳ OCR</span>
+                                  {% endif %}
+
+                                  {% if dok.upload_status == 'uploading' %}
+                                      <span class="badge bg-info text-dark">⬆ Uploading...</span>
+                                  {% elif dok.upload_status == 'failed' %}
+                                      <span class="badge badge-batal">✗ Upload Gagal</span>
+                                  {% endif %}
+
+                                  {% if dok.ukuran %}
+                                      <span class="text-muted" style="font-size:.75rem;">
+                                          {{ dok.ukuran|filesizeformat }}
+                                      </span>
+                                  {% endif %}
+                              </div>
+                          </div>
+
+                          <div class="d-flex gap-1 ms-2" style="flex-shrink:0;">
+                              {% if request.user.profile.role == 'admin' and dok.upload_status == 'uploaded' %}
+                                  <button type="button"
+                                          class="btn btn-primary btn-sm"
+                                          onclick="viewDokumen({{ dok.pk }}, this)">
+                                      👁 Lihat
+                                  </button>
+                              {% endif %}
+                              <button type="button"
+                                      class="btn btn-danger btn-sm"
+                                      onclick="deleteDokumen({{ dok.pk }}, this)">
+                                  🗑
+                              </button>
+                          </div>
+
+                      </div>
+                  </div>
+                  {% endfor %}
+              </div>
+          </div>
         {% endif %}
       </div>
 
@@ -141,4 +211,53 @@
     div[style*="grid-template-columns:1fr 1fr"] { grid-template-columns: 1fr !important; }
   }
 </style>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+const CSRF = '{{ csrf_token }}';
+
+async function deleteDokumen(id, btn) {
+    if (!confirm('Hapus dokumen ini? Tindakan ini tidak dapat dibatalkan.')) return;
+    btn.disabled = true;
+    btn.textContent = '...';
+    try {
+        const res = await fetch(`/api/dokumen/${id}/delete/`, {
+            method: 'DELETE',
+            headers: { 'X-CSRFToken': CSRF }
+        });
+        if (res.ok) {
+            btn.closest('.list-group-item').remove();
+        } else {
+            alert('Gagal menghapus dokumen.');
+            btn.disabled = false;
+            btn.textContent = '🗑';
+        }
+    } catch (e) {
+        alert('Terjadi kesalahan.');
+        btn.disabled = false;
+        btn.textContent = '🗑';
+    }
+}
+
+async function viewDokumen(id, btn) {
+    btn.disabled = true;
+    btn.textContent = '⏳...';
+    try {
+        // Fetch a fresh signed URL from the progress endpoint
+        const res  = await fetch(`/api/dokumen/${id}/signed-url/`);
+        const data = await res.json();
+        if (data.url) {
+            window.open(data.url, '_blank', 'noopener');
+        } else {
+            alert('Tidak dapat membuka dokumen.');
+        }
+    } catch (e) {
+        alert('Terjadi kesalahan.');
+    } finally {
+        btn.disabled = false;
+        btn.textContent = '👁 Lihat';
+    }
+}
+</script>
 {% endblock %}

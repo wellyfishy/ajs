@@ -57,6 +57,43 @@ def api_dokumen_summary(request):
         'belum':          belum,
     })
 
+@login_required
+def api_dokumen_by_shipment(request, shipment_id):
+    """Return all dokumen for a shipment with signed URLs for admins."""
+    user_is_admin = is_admin(request.user)
+    
+    docs = Dokumen.objects.filter(
+        shipment_id=shipment_id
+    ).select_related('kategori').order_by('-created_at')
+
+    items = []
+    for dok in docs:
+        items.append({
+            'id':            dok.pk,
+            'nama_file':     dok.nama_file,
+            'ukuran':        dok.ukuran,
+            'mime_type':     dok.mime_type,
+            'kategori':      dok.kategori.judul if dok.kategori_id else '—',
+            'upload_status': dok.upload_status,
+            'ocr_status':    dok.ocr_status,
+            'signed_url':    _get_signed_url(dok) if user_is_admin and dok.upload_status == 'uploaded' else None,
+        })
+
+    return JsonResponse({'items': items, 'total': len(items)})
+
+@login_required
+def api_dokumen_signed_url(request, dokumen_id):
+    """Generate a fresh signed URL for a single dokumen — admin only."""
+    if not is_admin(request.user):
+        return JsonResponse({'error': 'Forbidden'}, status=403)
+
+    dok = get_object_or_404(Dokumen, pk=dokumen_id)
+    url = _get_signed_url(dok)
+    if not url:
+        return JsonResponse({'error': 'Tidak dapat generate URL'}, status=400)
+
+    return JsonResponse({'url': url})
+
 # ──────────────────────────────────────────────────────────────
 #  API: Bulk upload
 # ──────────────────────────────────────────────────────────────

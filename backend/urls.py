@@ -74,4 +74,8 @@ urlpatterns = [
      path('api/dokumen/<int:dokumen_id>/progress/', views_dokumen.api_dokumen_progress, name='api_dokumen_progress'),
 
      path('api/dokumen/<int:dokumen_id>/delete/', views_dokumen.api_delete_dokumen, name='api_delete_dokumen'),
+
+     path('api/dokumen/shipment/<int:shipment_id>/', views_dokumen.api_dokumen_by_shipment, name='api_dokumen_by_shipment'),
+
+     path('api/dokumen/<int:dokumen_id>/signed-url/', views_dokumen.api_dokumen_signed_url, name='api_dokumen_signed_url'),
 ]
